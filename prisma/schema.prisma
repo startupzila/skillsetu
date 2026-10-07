@@ -2,16 +2,22 @@
 // SkillSetu — Prisma schema
 // Datasource: Supabase PostgreSQL
 //
+// ROLE OF THIS FILE:
+//   This schema is the canonical source of truth for the database
+//   structure (tables, columns, relations, indexes). It is pushed
+//   to Supabase with `bun run db:push` (see docs/deployment.md).
+//
+//   Runtime data access in the application uses the Supabase JS
+//   client (src/lib/supabase/*) over HTTPS — not Prisma Client —
+//   because the sandbox blocks raw TCP (port 5432) while HTTPS
+//   (port 443) works. See docs/architecture.md §"Data Access".
+//
 // The full entity model (identity, taxonomy, content, assessment,
 // learner, editorial, commerce, seo/ops) is added in sessions S2 & S3.
-// This file currently holds the datasource + generator config and a
-// minimal health-check model so `db:push` can verify the connection.
 // ────────────────────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client-js"
-  // Supabase Postgres benefits from the Rust query engine for full feature support.
-  // (The Data Proxy / Accelerate driver adapter is not used; we connect directly.)
 }
 
 datasource db {
@@ -19,10 +25,5 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Minimal connectivity probe used by the /api/health route to confirm
-/// that Prisma can read & write to Supabase Postgres. Removed in S2 once
-/// the real `profiles` table exists.
-model HealthProbe {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-}
+// Models are added starting in S2 (Identity, Taxonomy, Content)
+// and S3 (Assessment, Learner, Editorial, Commerce, SEO/Ops).

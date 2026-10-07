@@ -25,9 +25,10 @@ granular micro-sessions into realistic, executable development sessions for an A
 |---|---|
 | Specification analyzed | ✅ Done |
 | GitHub repository created | ✅ `startupzila/skillsetu` |
-| README + docs committed | ✅ This session |
+| README + docs committed | ✅ S0 |
 | Supabase project provisioned | ✅ (credentials provided) |
-| Development started | ⏳ Awaiting user confirmation |
+| Infrastructure & Supabase wiring | ✅ S1 |
+| Development continued | ⏳ Awaiting user confirmation for S2 |
 
 ---
 
@@ -93,27 +94,35 @@ granular micro-sessions into realistic, executable development sessions for an A
 
 ---
 
-### S1 — Infrastructure & Supabase Wiring
+### S1 — Infrastructure & Supabase Wiring ✅
 **Phase:** 1.2 (Vercel) + 1.3 (Supabase)
 
 **Scope:**
-- Switch Prisma datasource from SQLite → Supabase PostgreSQL (connection string from env).
+- Switch Prisma datasource from SQLite → Supabase PostgreSQL.
 - Add `@supabase/supabase-js` and `@supabase/ssr` packages.
-- Create `lib/supabase/` clients: browser client, server client (cookies), admin client (service role, server-only).
-- Wire Supabase env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`).
-- Set up Prisma migration workflow (`prisma/migrations/`) committed to repo.
-- Add `.env.example` with all keys.
-- Add a `/api/health` route to verify DB + Supabase connectivity.
-- Create `docs/deployment.md` documenting Vercel + Supabase setup.
+- Create `lib/supabase/` clients: browser (anon, RLS on), server (anon, RLS on),
+  admin (service-role, RLS off, server-only).
+- Wire Supabase env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL`).
+- `/api/health` route verifying env + Supabase reachability over HTTPS.
+- `docs/deployment.md` documenting Vercel + Supabase + migration workflow.
+
+**Data-access decision (recorded):** Runtime data access uses the Supabase JS
+client over HTTPS (port 443) — works in the dev sandbox, preview and production
+identically. Prisma is the schema source-of-truth only; `db:push` runs from a
+machine where Postgres port 5432 is reachable (the sandbox blocks raw TCP).
+See `docs/architecture.md` §"Data Access" and `docs/deployment.md`.
 
 **Deliverables:**
-- Working Supabase connection (server + browser + admin).
-- Prisma connected to Supabase Postgres.
-- Migration scaffolding committed.
+- Working Supabase connection (browser + server + admin clients).
+- `prisma/schema.prisma` on PostgreSQL (models added in S2).
+- `/api/health` returns `status: "ok"` when Supabase is reachable.
+- `docs/deployment.md`.
 
 **Acceptance:**
-- `bun run db:push` succeeds against Supabase.
-- `/api/health` returns DB ok + Supabase ok.
+- `/api/health` returns HTTP 200 with `supabase.status: "ok"`.
+- Homepage loads at `/`.
+- No secrets committed; only `.env.example` ships with placeholders.
 
 ---
 

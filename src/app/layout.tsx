@@ -14,24 +14,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+  title: {
+    default: "SkillSetu — Learn practical skills in your language",
+    template: "%s | SkillSetu",
   },
+  description:
+    "SkillSetu is a structured, multilingual, practical skills learning platform. Learn Excel, Word, Tally, Digital Marketing, AI tools and more — in English and Hindi.",
+  keywords: [
+    "SkillSetu",
+    "learn skills",
+    "Excel",
+    "Tally",
+    "Digital Marketing",
+    "AI tools",
+    "Hindi tutorials",
+    "practical skills",
+  ],
+  authors: [{ name: "SkillSetu" }],
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "SkillSetu — Learn practical skills in your language",
+    description:
+      "Structured tutorials, examples, practice, quizzes and resources in English and Hindi.",
+    siteName: "SkillSetu",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
+    title: "SkillSetu — Learn practical skills in your language",
+    description:
+      "Structured tutorials, examples, practice, quizzes and resources in English and Hindi.",
   },
 };
 

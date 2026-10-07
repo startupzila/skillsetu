@@ -33,11 +33,33 @@ Application Services (lib/)
      │
      ▼
 Supabase
-     ├── PostgreSQL   (Prisma schema, migrations committed)
+     ├── PostgreSQL   (schema defined in prisma/schema.prisma)
      ├── Auth         (email/password, verification, reset)
      ├── Storage      (images, PDFs, downloads)
      └── RLS          (row-level security, server-enforced authz)
 ```
+
+### Data Access (important)
+
+SkillSetu uses **two complementary layers**:
+
+1. **Runtime data access — Supabase JS client (HTTPS / port 443).**
+   All application reads and writes go through `@supabase/supabase-js`
+   over HTTPS. This works identically in the dev sandbox, in preview and
+   in production. Three clients live in `src/lib/supabase/`:
+   - `createBrowserSupabaseClient()` — browser, anon key, RLS on.
+   - `createServerSupabaseClient()` — server, anon key, RLS on.
+   - `createAdminClient()` — server-only, service-role key, RLS off.
+
+2. **Schema source-of-truth — Prisma.**
+   `prisma/schema.prisma` defines every table, column, relation and index.
+   It is pushed to Supabase Postgres with `bun run db:push` (run from a
+   machine where port 5432 is reachable, or via Supabase Dashboard SQL
+   Editor). Prisma does not participate in runtime queries.
+
+> **Why split?** The dev sandbox blocks raw TCP Postgres (port 5432) but
+> allows HTTPS. The Supabase JS client uses HTTPS, so the app runs
+> everywhere. Prisma is the schema definition tool only.
 
 Future (mobile, B2B, AI tutor) consumes the **same core data** via the application/API layer.
 
