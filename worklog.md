@@ -63,3 +63,58 @@ Stage Summary:
 - Data-access approach documented in docs/architecture.md §"Data Access" and docs/deployment.md.
 - Schema tables not yet provisioned (S2/S3) — reported as "pending" by /api/health.
 - Ready for S2 (database schema: identity, taxonomy, content).
+
+---
+Task ID: S2
+Agent: Z.ai Code (main)
+Task: Database schema (Part 1) — Identity, Taxonomy, Content, Blocks/Media; services + API routes + docs
+
+Work Log:
+- Wrote full Prisma schema (prisma/schema.prisma): 22 models, 5 enums.
+  Identity: profiles, roles, permissions, user_roles, role_permissions.
+  Taxonomy: categories, category_translations, skills, tags, course_tags, lesson_tags.
+  Content: courses, course_translations, course_categories, course_authors, modules, module_translations, lessons, lesson_translations.
+  Blocks/Media: lesson_blocks, media_assets, media_usages.
+- Key design decisions:
+  • Translation entities (never title_en/title_hi).
+  • lesson_blocks belong to lesson_translations (each language has own blocks).
+  • block_type is String (extensible), validated by Zod in service layer.
+  • UUIDs with DB-level gen_random_uuid() defaults.
+  • Scoped slug uniqueness (modules per course, lessons per module).
+  • Arrays use Json (no Prisma scalar lists per project rule).
+- Generated SQL DDL via `prisma migrate diff --from-empty --to-schema-datamodel` (no DB connection needed).
+  Saved to db/migrations/001_tables.sql (433 lines, 22 tables, 18 indexes).
+- Created db/migrations/002_triggers.sql: updated_at trigger function + triggers on all tables,
+  profiles.id FK to auth.users(id) ON DELETE CASCADE, profile auto-create trigger on auth signup, enable RLS.
+- Created db/migrations/003_rls.sql: RLS policies — public read of published content,
+  drafts invisible, profiles self-read/update, roles/permissions service-role only.
+- Created db/seeds/001_seed.sql: 11 roles, 19 permissions, super_admin↔all permissions,
+  admin↔operational permissions, sample category (Office Skills) with EN+HI,
+  sample course (Excel Fundamentals) with EN+HI, 1 module, 1 lesson, 7 blocks in each language.
+- Created db/README.md with step-by-step Supabase Dashboard SQL Editor instructions.
+- Created src/lib/content/types.ts: TypeScript types matching all schema entities.
+- Created src/lib/content/category-service.ts: listPublishedCategories, getPublishedCategoryBySlug.
+- Created src/lib/content/course-service.ts: listPublishedCourses, getPublishedCourseBySlug (with curriculum/modules/lessons).
+- Created src/lib/content/lesson-service.ts: getPublishedLessonBySlug (with blocks, prev/next navigation).
+- Created src/lib/content/index.ts: barrel export.
+- Created /api/categories route with schema_pending graceful fallback.
+- Created /api/courses route with schema_pending graceful fallback.
+- Updated /api/health to check if courses table exists (reports schema.status: applied|pending + course count).
+- Updated homepage to server component: shows published courses as cards, or setup notice if schema pending.
+- Created docs/database.md: entity overview, design decisions, RLS model.
+- Updated docs/plan.md: S2 marked complete with deliverables + acceptance criteria.
+- Ran bun run lint — passed clean, zero errors.
+- Verified dev server: GET / → 200, /api/health → {schema:{status:"pending",courses:0}},
+  /api/courses → {status:"schema_pending"}, /api/categories → {status:"schema_pending"}.
+- Browser verification (agent-browser): page renders with hero + setup notice card listing 4 SQL files,
+  footer at bottom, no console errors. Mobile (375px) layout verified.
+- Committed and pushed to GitHub (commit 82aa6a4).
+
+Stage Summary:
+- Complete S2 schema: 22 tables, 5 enums, 18 indexes, RLS policies, triggers, seed data.
+- All SQL files ready to apply via Supabase Dashboard SQL Editor (db/README.md has instructions).
+- Content service modules ready to query published content via Supabase JS client.
+- Homepage and API routes gracefully handle the "schema not yet applied" state.
+- /api/health now reports schema status + course count.
+- User must apply db/migrations/*.sql + db/seeds/001_seed.sql in Supabase Dashboard to see sample course.
+- Ready for S3 (Assessment, Learner, Editorial, Commerce, SEO/Ops schema).
