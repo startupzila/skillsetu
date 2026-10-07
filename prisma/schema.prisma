@@ -1,32 +1,28 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// ────────────────────────────────────────────────────────────
+// SkillSetu — Prisma schema
+// Datasource: Supabase PostgreSQL
+//
+// The full entity model (identity, taxonomy, content, assessment,
+// learner, editorial, commerce, seo/ops) is added in sessions S2 & S3.
+// This file currently holds the datasource + generator config and a
+// minimal health-check model so `db:push` can verify the connection.
+// ────────────────────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client-js"
+  // Supabase Postgres benefits from the Rust query engine for full feature support.
+  // (The Data Proxy / Accelerate driver adapter is not used; we connect directly.)
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
+/// Minimal connectivity probe used by the /api/health route to confirm
+/// that Prisma can read & write to Supabase Postgres. Removed in S2 once
+/// the real `profiles` table exists.
+model HealthProbe {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
