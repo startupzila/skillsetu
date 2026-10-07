@@ -32,7 +32,7 @@ export async function GET() {
 
   // Probe Supabase over HTTPS using the service-role admin client.
   // auth.admin.listUsers() confirms: project is reachable + key is valid.
-  let supabase: 'ok' | 'error' = 'error'
+  let supabaseStatus: 'ok' | 'error' = 'error'
   let supabaseDetail: string | undefined
 
   try {
@@ -41,13 +41,29 @@ export async function GET() {
     if (error) {
       supabaseDetail = error.message
     } else {
-      supabase = 'ok'
+      supabaseStatus = 'ok'
     }
   } catch (err) {
     supabaseDetail = err instanceof Error ? err.message : 'Unknown error'
   }
 
-  const ok = supabase === 'ok'
+  // Check if the S2 schema (courses table) has been applied.
+  let schemaStatus: 'applied' | 'pending' = 'pending'
+  let courseCount = 0
+  try {
+    const admin = createAdminClient()
+    const { count, error } = await admin
+      .from('courses')
+      .select('*', { count: 'exact', head: true })
+    if (!error && count !== null) {
+      schemaStatus = 'applied'
+      courseCount = count
+    }
+  } catch {
+    // Table doesn't exist yet — schema not applied
+  }
+
+  const ok = supabaseStatus === 'ok'
 
   return NextResponse.json(
     {
@@ -62,10 +78,16 @@ export async function GET() {
         siteUrl: env.siteUrl,
       },
       supabase: {
-        status: supabase,
+        status: supabaseStatus,
         ...(supabaseDetail ? { detail: supabaseDetail } : {}),
       },
-      schema: 'pending — tables are created in S2/S3 via prisma db:push',
+      schema: {
+        status: schemaStatus,
+        courses: courseCount,
+        ...(schemaStatus === 'pending'
+          ? { message: 'Apply db/migrations/*.sql in Supabase Dashboard SQL Editor.' }
+          : {}),
+      },
     },
     { status: ok ? 200 : 503 },
   )

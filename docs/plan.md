@@ -28,7 +28,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | README + docs committed | ✅ S0 |
 | Supabase project provisioned | ✅ (credentials provided) |
 | Infrastructure & Supabase wiring | ✅ S1 |
-| Development continued | ⏳ Awaiting user confirmation for S2 |
+| Database schema — Identity, Taxonomy, Content | ✅ S2 |
+| Development continued | ⏳ Awaiting user confirmation for S3 |
 
 ---
 
@@ -126,29 +127,41 @@ See `docs/architecture.md` §"Data Access" and `docs/deployment.md`.
 
 ---
 
-### S2 — Database Schema (Part 1): Identity, Taxonomy, Content
+### S2 — Database Schema (Part 1): Identity, Taxonomy, Content ✅
 **Phase:** 2.1–2.4
 
 **Scope:**
 - **Identity:** `profiles`, `roles`, `permissions`, `user_roles`, `role_permissions`.
-- **Taxonomy:** `categories` (hierarchical), `category_translations`, `skills`, `tags`.
-- **Content:** `courses`, `course_translations`, `course_categories`, `course_authors`,
-  `modules`, `module_translations`, `lessons`, `lesson_translations`, `lesson_blocks`,
-  `media_assets`, `media_usages`.
-- Slugs (unique within scope), status (`draft|in_review|scheduled|published|archived`),
-  `published_at/by`, SEO metadata relation, ordering, timestamps.
-- Seed: Super Admin role, sample category, sample course, module, lesson, translations.
-- RLS policies for public read of published content.
+- **Taxonomy:** `categories` (hierarchical), `category_translations`, `skills`, `tags`, `course_tags`, `lesson_tags`.
+- **Content:** `courses`, `course_translations`, `course_categories`, `course_authors`, `modules`, `module_translations`, `lessons`, `lesson_translations`.
+- **Blocks & Media:** `lesson_blocks`, `media_assets`, `media_usages`.
+- Slugs (scoped uniqueness), status enums, `published_at`, timestamps.
+- Seed: 11 roles, 19 permissions, sample category/course/module/lesson with EN+HI translations + blocks.
+- RLS policies: public read of published content; drafts invisible.
 
 **Deliverables:**
-- Prisma migration `001_identity_taxonomy_content`.
-- Seed script `prisma/seeds/`.
-- `docs/database.md` (entity overview + ER notes).
+- `prisma/schema.prisma` — 22 models, 5 enums (source of truth).
+- `db/migrations/001_tables.sql` — DDL (generated via `prisma migrate diff`).
+- `db/migrations/002_triggers.sql` — updated_at triggers, auth.users FK, profile auto-create, RLS enable.
+- `db/migrations/003_rls.sql` — RLS policies.
+- `db/seeds/001_seed.sql` — demo data.
+- `db/README.md` — application instructions.
+- `src/lib/content/{types,category-service,course-service,lesson-service,index}.ts` — service modules.
+- `/api/categories`, `/api/courses` routes.
+- Updated homepage (server component) showing published courses or setup notice.
+- `docs/database.md`.
+
+**Note on schema application:** Since the sandbox blocks raw TCP Postgres,
+the SQL files must be applied via the Supabase Dashboard SQL Editor (or from
+a local machine with port 5432 access). The `/api/health` endpoint reports
+`schema.status: "applied" | "pending"` and `schema.courses` count.
 
 **Acceptance:**
-- Migration applies cleanly.
-- Seed inserts sample data.
-- Published content is publicly readable; drafts are not.
+- SQL files run cleanly in Supabase Dashboard (in order 001→002→003→seed).
+- `/api/health` returns `schema.status: "applied"`.
+- `/api/courses?lang=en` returns the seed course.
+- Homepage shows the Excel Fundamentals course card.
+- Drafts are invisible to public (RLS verified).
 
 ---
 

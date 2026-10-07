@@ -1,19 +1,18 @@
 // ────────────────────────────────────────────────────────────
-// SkillSetu — Prisma schema
+// SkillSetu — Prisma schema (S2: Identity, Taxonomy, Content)
 // Datasource: Supabase PostgreSQL
 //
 // ROLE OF THIS FILE:
 //   This schema is the canonical source of truth for the database
-//   structure (tables, columns, relations, indexes). It is pushed
-//   to Supabase with `bun run db:push` (see docs/deployment.md).
+//   structure. The SQL DDL is generated from it (db/migrations/)
+//   and applied to Supabase via the Dashboard SQL Editor.
 //
-//   Runtime data access in the application uses the Supabase JS
-//   client (src/lib/supabase/*) over HTTPS — not Prisma Client —
-//   because the sandbox blocks raw TCP (port 5432) while HTTPS
-//   (port 443) works. See docs/architecture.md §"Data Access".
+//   Runtime data access uses the Supabase JS client (HTTPS).
+//   See docs/architecture.md §"Data Access".
 //
-// The full entity model (identity, taxonomy, content, assessment,
-// learner, editorial, commerce, seo/ops) is added in sessions S2 & S3.
+// Naming: DB tables/columns are snake_case (via @map / @@map).
+// S2 covers: Identity, Taxonomy, Content, Content Blocks, Media.
+// S3 will add: Assessment, Learner, Editorial, Commerce, SEO/Ops.
 // ────────────────────────────────────────────────────────────
 
 generator client {
@@ -25,5 +24,416 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Models are added starting in S2 (Identity, Taxonomy, Content)
-// and S3 (Assessment, Learner, Editorial, Commerce, SEO/Ops).
+// ═══════════════════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════════════════
+
+enum ContentStatus {
+  draft
+  in_review
+  scheduled
+  published
+  archived
+}
+
+enum TranslationStatus {
+  draft
+  in_translation
+  in_review
+  published
+  needs_update
+}
+
+enum DifficultyLevel {
+  beginner
+  intermediate
+  advanced
+  all_levels
+}
+
+enum LessonType {
+  article
+  video
+  mixed
+}
+
+enum CourseAuthorRole {
+  primary
+  contributor
+}
+
+// ═══════════════════════════════════════════════════════════
+// IDENTITY  (Phase 2.1)
+// ═══════════════════════════════════════════════════════════
+
+/// Learner / staff profile. `id` mirrors Supabase `auth.users(id)`.
+/// The FK to auth.users and the auto-creation trigger are in
+/// db/migrations/002_triggers.sql (Prisma cannot model auth.users).
+model Profile {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  displayName       String?  @map("display_name")
+  bio               String?
+  avatarUrl         String?  @map("avatar_url")
+  preferredLanguage String   @default("en") @map("preferred_language")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @map("updated_at")
+
+  userRoles       UserRole[]
+  uploadedMedia   MediaAsset[]
+  publishedCourses Course[] @relation("CoursePublisher")
+
+  @@map("profiles")
+}
+
+model Role {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAXONOMY  (Phase 2.2)
+// ═══════════════════════════════════════════════════════════
+
+model Category {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  parentId    String?  @map("parent_id") @db.Uuid
+  sortOrder   Int      @default(0) @map("sort_order")
+  status      ContentStatus @default(draft)
+  icon        String?
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
+  translations CategoryTranslation[]
+  courses     CourseCategory[]
+
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId   String   @map("category_id") @db.Uuid
+  languageCode String   @map("language_code")
+  name         String
+  description  String?
+  status       TranslationStatus @default(draft)
+  // translator_id / reviewer_id are plain UUID FKs (see 002_triggers.sql)
+  translatorId String?  @map("translator_id") @db.Uuid
+  reviewerId   String?  @map("reviewer_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, languageCode])
+  @@map("category_translations")
+}
+
+model Skill {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String   @unique
+  status    ContentStatus @default(draft)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("skills")
+}
+
+model Tag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  courses CourseTag[]
+  lessons LessonTag[]
+
+  @@map("tags")
+}
+
+model CourseTag {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId String @map("course_id") @db.Uuid
+  tagId    String @map("tag_id") @db.Uuid
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, tagId])
+  @@map("course_tags")
+}
+
+model LessonTag {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lessonId String @map("lesson_id") @db.Uuid
+  tagId    String @map("tag_id") @db.Uuid
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, tagId])
+  @@map("lesson_tags")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTENT — COURSES  (Phase 2.3)
+// ═══════════════════════════════════════════════════════════
+
+model Course {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug              String   @unique
+  status            ContentStatus @default(draft)
+  difficulty        DifficultyLevel @default(beginner)
+  estimatedDuration Int?     @map("estimated_duration") // minutes
+  thumbnailMediaId  String?  @map("thumbnail_media_id") @db.Uuid
+  defaultLanguage   String   @default("en") @map("default_language")
+  publishedAt       DateTime? @map("published_at")
+  publishedById     String?  @map("published_by") @db.Uuid
+  lastReviewedAt    DateTime? @map("last_reviewed_at")
+  nextReviewAt      DateTime? @map("next_review_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @map("updated_at")
+
+  translations CourseTranslation[]
+  categories   CourseCategory[]
+  authors      CourseAuthor[]
+  modules      Module[]
+  tags         CourseTag[]
+  publishedBy  Profile?     @relation("CoursePublisher", fields: [publishedById], references: [id])
+  thumbnail    MediaAsset?  @relation("CourseThumbnail", fields: [thumbnailMediaId], references: [id])
+
+  @@map("courses")
+}
+
+model CourseTranslation {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId         String   @map("course_id") @db.Uuid
+  languageCode     String   @map("language_code")
+  title            String
+  shortDescription String?  @map("short_description")
+  description      String?
+  learningOutcomes Json?    @map("learning_outcomes") // string[]
+  prerequisites    Json?    // string[]
+  targetAudience   Json?    @map("target_audience")    // string[]
+  status           TranslationStatus @default(draft)
+  translatorId     String?  @map("translator_id") @db.Uuid
+  reviewerId       String?  @map("reviewer_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @map("updated_at")
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, languageCode])
+  @@map("course_translations")
+}
+
+model CourseCategory {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId   String @map("course_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, categoryId])
+  @@map("course_categories")
+}
+
+model CourseAuthor {
+  id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId String           @map("course_id") @db.Uuid
+  authorId String           @map("author_id") @db.Uuid
+  role     CourseAuthorRole @default(primary)
+
+  course Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, authorId])
+  @@map("course_authors")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTENT — MODULES & LESSONS  (Phase 2.3)
+// ═══════════════════════════════════════════════════════════
+
+model Module {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId    String   @map("course_id") @db.Uuid
+  slug        String
+  sortOrder   Int      @default(0) @map("sort_order")
+  status      ContentStatus @default(draft)
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  course       Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  translations ModuleTranslation[]
+  lessons      Lesson[]
+
+  @@unique([courseId, slug])
+  @@map("modules")
+}
+
+model ModuleTranslation {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moduleId     String   @map("module_id") @db.Uuid
+  languageCode String   @map("language_code")
+  title        String
+  description  String?
+  status       TranslationStatus @default(draft)
+  translatorId String?  @map("translator_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, languageCode])
+  @@map("module_translations")
+}
+
+model Lesson {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moduleId        String   @map("module_id") @db.Uuid
+  slug            String
+  sortOrder       Int      @default(0) @map("sort_order")
+  lessonType      LessonType @default(article) @map("lesson_type")
+  status          ContentStatus @default(draft)
+  durationMinutes Int?     @map("duration_minutes")
+  publishedAt     DateTime? @map("published_at")
+  lastReviewedAt  DateTime? @map("last_reviewed_at")
+  nextReviewAt    DateTime? @map("next_review_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @map("updated_at")
+
+  module       Module              @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  translations LessonTranslation[]
+  tags         LessonTag[]
+
+  @@unique([moduleId, slug])
+  @@map("lessons")
+}
+
+model LessonTranslation {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lessonId     String   @map("lesson_id") @db.Uuid
+  languageCode String   @map("language_code")
+  title        String
+  summary      String?
+  status       TranslationStatus @default(draft)
+  translatorId String?  @map("translator_id") @db.Uuid
+  reviewerId   String?  @map("reviewer_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  lesson Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  blocks LessonBlock[]
+
+  @@unique([lessonId, languageCode])
+  @@map("lesson_translations")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTENT — BLOCKS & MEDIA  (Phase 2.4)
+// ═══════════════════════════════════════════════════════════
+
+/// Structured content block belonging to a LessonTranslation.
+/// `block_type` is a String (not enum) to stay extensible.
+/// `data` is validated by Zod schemas in src/lib/validation/.
+model LessonBlock {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lessonTranslationId String   @map("lesson_translation_id") @db.Uuid
+  blockType           String   @map("block_type")
+  sortOrder           Int      @default(0) @map("sort_order")
+  data                Json
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @map("updated_at")
+
+  lessonTranslation LessonTranslation @relation(fields: [lessonTranslationId], references: [id], onDelete: Cascade)
+
+  @@map("lesson_blocks")
+}
+
+model MediaAsset {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storagePath String   @map("storage_path")
+  bucket      String   @default("media")
+  fileName    String   @map("file_name")
+  fileType    String   @map("file_type") // image, pdf, document, …
+  mimeType    String   @map("mime_type")
+  sizeBytes   Int      @map("size_bytes")
+  width       Int?
+  height      Int?
+  altText     String?  @map("alt_text")
+  caption     String?
+  source      String?
+  license     String?
+  uploadedById String? @map("uploaded_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  uploadedBy       Profile?   @relation(fields: [uploadedById], references: [id])
+  courseThumbnails  Course[]   @relation("CourseThumbnail")
+  usages            MediaUsage[]
+
+  @@map("media_assets")
+}
+
+model MediaUsage {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mediaId    String   @map("media_id") @db.Uuid
+  entityType String   @map("entity_type") // lesson_block, course_thumbnail, …
+  entityId   String   @map("entity_id") @db.Uuid
+  fieldName  String?  @map("field_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@map("media_usages")
+}
