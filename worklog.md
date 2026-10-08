@@ -282,3 +282,55 @@ Stage Summary:
 - Per-session docs saved in docs/session/ on GitHub.
 - Workflow established: agent handles all DB/GitHub work automatically going forward.
 - Ready for S5 (Design System & Global Layout).
+
+---
+Task ID: S5
+Agent: Z.ai Code (main)
+Task: Design system & global layout — tokens, theme, header, sticky footer, responsive nav, shared components
+
+Work Log:
+- Verified DB migration complete (schema.status:applied, courses:1) before starting S5.
+- Updated src/app/globals.css with SkillSetu design tokens:
+  • Brand color: teal/emerald (growth, learning, professional) — NOT indigo/blue per rules.
+  • Full token system (light + dark): background, foreground, card, popover, primary (teal),
+    brand, brand-muted, secondary, muted, accent, destructive, success, warning (new), border, input, ring, charts, sidebar.
+  • Accessibility: :focus-visible with ring-2 + ring-offset, prefers-reduced-motion media query, antialiased, smooth font rendering.
+- Created src/components/providers/theme-provider.tsx: wraps app in next-themes (attribute=class, defaultTheme=system, enableSystem).
+- Created src/components/public/theme-toggle.tsx: Sun/Moon toggle button (client component).
+- Created src/components/public/header.tsx: sticky header with logo (SkillSetu teal), nav links (Skills/Courses/Books/About),
+  search box, language switcher, theme toggle, auth buttons (Sign in/up or Dashboard/Console/Sign out).
+  Responsive: full nav on desktop, hamburger Sheet on mobile.
+- Created src/components/public/footer.tsx: sticky-to-bottom footer with brand, link sections (Learn/Company/Legal), copyright.
+- Created src/components/public/breadcrumbs.tsx: accessible breadcrumb nav (aria-label, aria-current).
+- Created src/components/public/language-switcher.tsx: EN/HI dropdown (cookie-based: skillsetu-lang, server-refreshable).
+- Created src/components/public/search-box.tsx: search input → /search?q=... (full search page in S7).
+- Created src/components/shared/course-card.tsx: course display card (difficulty, duration, title, description, learning outcomes, CTA).
+- Created src/components/shared/progress-bar.tsx: accessible progress bar (role=progressbar, aria-valuenow, sizes sm/md/lg).
+- Created src/components/shared/status-badge.tsx: content/translation status → colored badge (draft/gray, in_review/amber, published/green, needs_update/red).
+- Created src/components/shared/empty-state.tsx: friendly empty placeholder with icon, title, description, action.
+- Created src/components/shared/error-state.tsx: error placeholder with retry button (role=alert).
+- Created index.ts barrel exports for shared + public components.
+- Updated src/app/layout.tsx to wrap app in ThemeProvider.
+- Rewrote src/app/page.tsx: min-h-screen flex flex-col layout (Header + main + Footer sticky),
+  hero section (brand badge, large heading, CTA buttons), Featured Courses grid (CourseCard with real Supabase data),
+  "Why SkillSetu?" methodology section (3 feature cards).
+- Ran bun run lint — passed clean, zero errors.
+- Verified endpoints: GET / → 200, /login → 200, /console (no auth) → 307.
+- Browser verification (agent-browser):
+  • Desktop: header renders all elements, hero + course card + methodology section, no console errors.
+  • Theme toggle: clicking Sun/Moon button changes html class from light → dark (dark mode renders).
+  • Mobile (375px): hamburger menu appears, opens Sheet with nav links + search + auth buttons, course card stacks full width.
+  • Login flow: logged in as test user → header now shows Dashboard + Console links (not Sign in/up).
+- Created docs/session/S5.md.
+- Updated docs/plan.md status table (S5 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Full design system: teal brand tokens, light/dark theme, semantic colors (success/warning/destructive).
+- Public layout: sticky header (logo, nav, search, lang, theme, auth) + sticky footer.
+- Responsive: desktop nav + mobile hamburger Sheet.
+- 5 shared components ready: CourseCard, ProgressBar, StatusBadge, EmptyState, ErrorState.
+- Accessibility: focus-visible, reduced-motion, ARIA roles, semantic HTML.
+- Homepage shows real Excel Fundamentals course with new design.
+- Theme toggle works end-to-end (light ↔ dark).
+- Ready for S6 (Public website: homepage polish, category pages, course pages).

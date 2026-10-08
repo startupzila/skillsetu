@@ -32,7 +32,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Database schema — Assessment, Learner, Editorial, Commerce, SEO/Ops | ✅ S3 |
 | Authentication & RBAC | ✅ S4 |
 | Database migrations applied to Supabase (automated) | ✅ DB-SETUP |
-| Development continued | ⏳ Awaiting user confirmation for S5 |
+| Design system & global layout | ✅ S5 |
+| Development continued | ⏳ Awaiting user confirmation for S6 |
 
 ---
 
