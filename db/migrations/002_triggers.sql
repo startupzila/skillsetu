@@ -1,12 +1,13 @@
 -- ═══════════════════════════════════════════════════════════
 -- SkillSetu — 002_triggers.sql
--- Run AFTER 001_tables.sql in the Supabase Dashboard SQL Editor.
+-- Run AFTER 001_schema.sql.
 --
 -- Contents:
 --   1. updated_at trigger function (auto-updates updated_at on UPDATE)
---   2. Triggers on every table that has updated_at
+--   2. Triggers on every table that has updated_at (all 60 tables)
 --   3. profiles.id FK → auth.users(id) ON DELETE CASCADE
 --   4. Auto-create a profile row when a new auth.users row is created
+--   5. Enable RLS on every public table (policies in 003_rls.sql)
 -- ═══════════════════════════════════════════════════════════
 
 -- ── 1. updated_at trigger function ─────────────────────────
@@ -28,6 +29,7 @@ BEGIN
     WHERE table_schema = 'public'
       AND column_name = 'updated_at'
   LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS set_updated_at ON %I;', tbl);
     EXECUTE format(
       'CREATE TRIGGER set_updated_at BEFORE UPDATE ON %I
        FOR EACH ROW EXECUTE FUNCTION skillsetu_set_updated_at();',
@@ -62,27 +64,16 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION skillsetu_handle_new_user();
 
--- ── 5. Enable RLS on every table ──────────────────────────
--- Policies are defined in 003_rls.sql
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE permissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE category_translations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE skills ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE course_tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE lesson_tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE course_translations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE course_categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE course_authors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE modules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE module_translations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE lesson_translations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE lesson_blocks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE media_assets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE media_usages ENABLE ROW LEVEL SECURITY;
+-- ── 5. Enable RLS on every public table ───────────────────
+DO $$
+DECLARE
+  tbl TEXT;
+BEGIN
+  FOR tbl IN
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', tbl);
+  END LOOP;
+END;
+$$;

@@ -10,7 +10,11 @@
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "db:apply": "bun run scripts/apply-migrations.ts",
+    "db:check": "bun run scripts/apply-migrations.ts --check",
+    "db:reset:hard": "bun run scripts/reset-db.ts",
+    "db:generate-sql": "bun run scripts/generate-sql.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -63,6 +67,7 @@
     "next-auth": "^4.24.11",
     "next-intl": "^4.3.4",
     "next-themes": "^0.4.6",
+    "pg": "^8.23.1",
     "prisma": "^6.11.1",
     "react": "^19.0.0",
     "react-day-picker": "^9.8.0",
@@ -84,6 +89,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "bun-types": "^1.3.4",
