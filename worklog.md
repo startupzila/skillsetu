@@ -118,3 +118,65 @@ Stage Summary:
 - /api/health now reports schema status + course count.
 - User must apply db/migrations/*.sql + db/seeds/001_seed.sql in Supabase Dashboard to see sample course.
 - Ready for S3 (Assessment, Learner, Editorial, Commerce, SEO/Ops schema).
+
+---
+Task ID: S3
+Agent: Z.ai Code (main)
+Task: Database schema (Part 2) — Assessment, Learner, Editorial, Commerce, SEO/Ops; services + API routes + docs
+
+Work Log:
+- Extended prisma/schema.prisma with 38 new models + 13 new enums (total now: 60 models, 18 enums).
+  Assessment: questions, question_translations, question_options, quizzes, quiz_translations,
+  quiz_questions, mock_tests, test_translations, test_questions, attempts, attempt_answers.
+  Learner: enrollments, lesson_progress, bookmarks, notes.
+  Editorial: assignments, reviews, revisions, editorial_comments, translation_tasks, audit_logs.
+  Commerce: products, product_variants, orders, order_items, payments, coupons, entitlements,
+  course_products, course_books, lesson_books.
+  SEO/Ops: seo_metadata, redirects, ad_slots (AdSlotConfig model), affiliate_links, custom_code,
+  notifications, system_settings.
+- Fixed enum/model naming conflict: AdSlot enum + AdSlotConfig model (table ad_slots).
+- Validated schema with prisma format (clean).
+- Generated S3-only SQL DDL by diffing S2 schema → full schema (python script extracted S3 statements).
+  Saved to db/migrations/004_tables_s3.sql (38 tables, 13 enums, 21 indexes, 799 lines).
+- Created db/migrations/005_rls_s3.sql: RLS policies for all S3 tables.
+  • Published assessment: public read (questions, quizzes, tests, translations, options).
+  • Learner data: self-only (enrollments, progress, bookmarks, notes).
+  • Editorial: service-role only (no public policies).
+  • Commerce: products public read; orders/payments/entitlements self-only; coupons service-role.
+  • SEO/Ops: seo_metadata/redirects/ad_slots/affiliate_links/custom_code public read active; notifications self; system_settings public if is_public.
+- Created db/migrations/006_triggers_s3.sql: idempotent updated_at triggers on S3 tables (DROP + CREATE).
+- Created db/seeds/002_seed_s3.sql: sample question (4 options, EN+HI), quiz linked to Excel lesson,
+  book product (Excel Practice Workbook), coupon WELCOME10 (10% off).
+- Created src/lib/learning/assessment-types.ts + learner-types.ts: TypeScript types matching S3 schema.
+- Created src/lib/learning/assessment-service.ts: getPublishedQuizBySlug, gradeAnswer.
+  CRITICAL: preparePublicQuestion() strips is_correct from options before sending to client.
+  Only gradeAnswer() reveals correctness after submission.
+- Created src/lib/learning/progress-service.ts: enrolInCourse, listMyEnrollments, getOrCreateLessonProgress,
+  completeLesson, toggleBookmark, listMyBookmarks, createNote, listMyNotes, updateNote, deleteNote.
+  All operations use requireUserId() which extracts auth.uid() from session — client user_id never trusted.
+- Created src/lib/learning/index.ts: barrel export.
+- Created /api/quiz route: GET published quiz by slug (questions without is_correct).
+- Created /api/quiz/grade route: POST grade answer (reveals correct option IDs + explanation after submission).
+- Created /api/progress/lesson route: POST start/complete lesson (requires auth, 401 if not signed in).
+- Updated docs/database.md with S3 entities overview, design decisions, RLS policy summary.
+- Updated docs/plan.md: S3 marked complete with deliverables + acceptance criteria.
+- Updated db/README.md: file order now 8 files (001-006 + 2 seeds).
+- Restored .env with Supabase credentials (had been reset to SQLite by previous session).
+- Ran bun run lint — passed clean, zero errors.
+- Restarted dev server, verified endpoints:
+  • GET / → 200 (homepage renders, setup notice shown)
+  • GET /api/quiz?slug=excel-intro-quiz → {status:"schema_pending"} (tables not applied yet)
+  • POST /api/quiz/grade → {status:"schema_pending"}
+  • POST /api/progress/lesson (no auth) → {error:"Authentication required"} (401, correct)
+- Browser verification (agent-browser): page renders, no console errors.
+- Committed and pushed to GitHub (commit 466a6bc).
+
+Stage Summary:
+- Complete S3 schema: 38 tables, 13 enums, 21 indexes, RLS policies, triggers, seed data.
+- Full database schema now complete: 60 tables, 18 enums (S2 + S3).
+- Assessment service correctly strips correct answers before client delivery.
+- Learner service is server-authoritative (auth.uid() from session, never client-provided).
+- All API routes handle schema_pending gracefully and enforce auth where needed.
+- User must apply db/migrations/004_tables_s3.sql + 005 + 006 + seeds/002_seed_s3.sql in Supabase Dashboard
+  (after S2 files) to see sample question/quiz/book.
+- Ready for S4 (Authentication & RBAC).
