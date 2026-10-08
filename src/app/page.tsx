@@ -9,6 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { listPublishedCourses } from '@/lib/content'
+import { getSession, isStaff } from '@/lib/auth'
 
 /**
  * SkillSetu — homepage (S2+).
@@ -21,7 +22,10 @@ import { listPublishedCourses } from '@/lib/content'
  * is built in session S6.
  */
 export default async function Home() {
-  const { data: courses, error } = await listPublishedCourses('en')
+  const [{ data: courses, error }, session] = await Promise.all([
+    listPublishedCourses('en'),
+    getSession().catch(() => null),
+  ])
   const schemaApplied = !error && courses !== null
 
   return (
@@ -30,9 +34,37 @@ export default async function Home() {
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold tracking-tight">SkillSetu</h1>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/api/health">System Health</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {session ? (
+              <>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+                {isStaff(session) && (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/console">Console</Link>
+                  </Button>
+                )}
+                <form action="/api/auth/logout" method="post">
+                  <Button type="submit" variant="outline" size="sm">
+                    Sign out
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button asChild variant="default" size="sm">
+                  <Link href="/register">Sign up</Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/api/health">System Health</Link>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 

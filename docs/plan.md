@@ -30,7 +30,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Infrastructure & Supabase wiring | ✅ S1 |
 | Database schema — Identity, Taxonomy, Content | ✅ S2 |
 | Database schema — Assessment, Learner, Editorial, Commerce, SEO/Ops | ✅ S3 |
-| Development continued | ⏳ Awaiting user confirmation for S4 |
+| Authentication & RBAC | ✅ S4 |
+| Development continued | ⏳ Awaiting user confirmation for S5 |
 
 ---
 
@@ -200,27 +201,37 @@ a local machine with port 5432 access). The `/api/health` endpoint reports
 
 ---
 
-### S4 — Authentication & RBAC
+### S4 — Authentication & RBAC ✅
 **Phase:** 3.1–3.3
 
 **Scope:**
 - Learner auth: register, login, logout, email verification, password reset, profile.
 - Supabase Auth integration with server-side session cookies (`@supabase/ssr`).
 - `/console` protection middleware + role verification.
-- Server authorization helpers: `requirePermission(user, 'course.publish')` etc.
+- Server authorization helpers: `requireUser`, `requireRole`, `requirePermission`,
+  `hasPermission`, `hasRole`, `isStaff`.
 - Unauthorized + forbidden pages.
-- Audit logging for admin security events.
+- Audit logging helper (`recordAudit`).
 - MFA readiness (documented; not enforced in MVP).
 
 **Deliverables:**
-- `lib/auth/` with `getSession`, `requireRole`, `requirePermission`, `hasPermission`.
-- Auth pages under `src/app/(auth)/`.
+- `src/lib/auth/session.ts` — `getSession`, `requireUser`, `requireRole`, `requirePermission`, `hasPermission`, `hasRole`, `isStaff`, `AuthError`.
+- `src/lib/auth/permissions.ts` — permission + role constants.
+- `src/lib/auth/audit.ts` — `recordAudit` (service-role, immutable).
+- `src/middleware.ts` — session refresh + `/console` protection.
+- API routes: `/api/auth/{register,login,logout,forgot-password,reset-password,callback}`.
+- Auth pages: `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`.
+- `/console` layout + dashboard (shows roles, permissions, module access).
+- `/unauthorized` (403) page.
+- Homepage updated to show auth-aware header (Sign in/up vs Dashboard/Console/Sign out).
 - `docs/security.md`.
 
 **Acceptance:**
-- A learner can register/login/verify/reset.
-- An unauthorized user cannot reach `/console/*`.
-- A user without `course.publish` cannot publish via API.
+- A learner can register, receive a verification email, verify, login, logout.
+- Unauthenticated users are redirected from `/console` to `/login`.
+- Authenticated non-staff users see "no access" in the console (not a redirect loop).
+- `requirePermission()` throws `AuthError(FORBIDDEN)` when permission is missing.
+- No secrets in client bundles.
 
 ---
 
