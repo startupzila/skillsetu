@@ -34,7 +34,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Database migrations applied to Supabase (automated) | ✅ DB-SETUP |
 | Design system & global layout | ✅ S5 |
 | Public website — homepage, categories, course pages | ✅ S6 |
-| Development continued | ⏳ Awaiting user confirmation for S7 |
+| Lesson renderer & search | ✅ S7 |
+| Development continued | ⏳ Awaiting user confirmation for S8 |
 
 ---
 

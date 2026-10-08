@@ -396,3 +396,71 @@ Stage Summary:
 - Category filter chips on /courses.
 - Related courses on course detail.
 - Ready for S7 (lesson renderer + search).
+
+---
+Task ID: S7
+Agent: Z.ai Code (main)
+Task: Lesson renderer & search — content-block renderer, lesson page, search service + page
+
+Work Log:
+- Created src/components/learning/content-renderer.tsx: main component mapping block_type → renderer,
+  with fallback for unknown types.
+- Created src/components/learning/blocks/index.tsx: individual renderers for all MVP block types:
+  • heading (levels 1-6, dynamic tag)
+  • paragraph (relaxed line-height)
+  • image (src/alt/caption, lazy loading, figure)
+  • callout (variants: info, tip, warning, success, summary — each with icon + color)
+  • code (language label header, monospace, overflow-x-auto)
+  • table (headers + rows, responsive)
+  • quote (blockquote with left border, author)
+  • checklist (checkbox-style items)
+  • example (highlighted box with EXAMPLE label)
+  • related_content (title + link list)
+  • quiz (placeholder linking to quiz, full UI in S8)
+  • video (feature-flagged placeholder, full video in S11)
+- Created src/components/learning/index.ts barrel export.
+- Created db/seeds/004_seed_extra_blocks.sql: added 5 more block types to "What is Excel?" lesson
+  (example, code, table, quote, related_content) to showcase the renderer.
+- Applied seed via bun run db:apply.
+- Cleaned up duplicate lesson_blocks (42 duplicates from seed re-runs without unique constraint).
+  19 unique blocks remain (12 EN + 7 HI).
+- Created lesson page src/app/(public)/courses/[slug]/[module]/[lesson]/page.tsx:
+  • generateMetadata for SEO (title, description, OpenGraph).
+  • Breadcrumbs (Home > Courses > Course > Module > Lesson).
+  • Lesson header: duration badge, lesson_type badge, title, summary.
+  • Save/Notes buttons (wired in S8).
+  • ContentRenderer rendering all blocks from DB.
+  • Prev/Next navigation (within same module, computed server-side).
+  • "Back to course" CTA when no next lesson.
+  • Course Content sidebar (sticky, desktop): full curriculum with current lesson highlighted.
+  • Responsive: sidebar hidden on mobile.
+- Created src/lib/content/search-service.ts: search(query, language, limit) using PostgreSQL ILIKE
+  across courses (title, short_description), lessons (title, summary), questions (question_text).
+  Returns SearchResult[] with type, slug, title, excerpt, URL, meta.
+- Exported search from index.ts.
+- Created search page src/app/(public)/search/page.tsx:
+  • Server-rendered. Search form (autofocus, role=search).
+  • Result count. Results list with type badges (Course/Lesson/Question), difficulty, duration.
+  • EmptyState when no results (with "Browse all courses" CTA).
+  • EmptyState when no query ("Start typing to search").
+  • SEO metadata.
+- Ran bun run lint — passed clean, zero errors.
+- Verified pages return 200: lesson page, search with/without query/results.
+- Browser verification (agent-browser):
+  • Lesson page renders all 12 block types: heading, paragraph, callout (info + summary), checklist,
+    example, code (EXCEL formulas), table (4 rows), quote (with author), related_content (2 links).
+    Breadcrumbs, badges, prev/next nav, sticky course sidebar with current lesson highlighted.
+  • Search "excel": 2 results (lesson + question) with type badges.
+  • Search "xyznonexistent": EmptyState with "Browse all courses" CTA.
+  • Search no query: EmptyState "Start typing to search".
+  • No console errors.
+- Created docs/session/S7.md. Updated docs/plan.md (S7 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Full content-block renderer: 12 block types (heading, paragraph, image, callout, code, table, quote,
+  checklist, example, related_content, quiz, video).
+- Lesson page with curriculum sidebar + prev/next + breadcrumbs + SEO metadata.
+- Search across courses + lessons + questions (PostgreSQL ILIKE for MVP).
+- All public pages now built (homepage, categories, courses, course detail, lesson, search).
+- Ready for S8 (Learning system: progress, bookmarks, notes, quizzes, mock tests).
