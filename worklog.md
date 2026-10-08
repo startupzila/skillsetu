@@ -239,3 +239,46 @@ Stage Summary:
 - MFA readiness documented (not enforced in MVP).
 - Homepage shows auth-aware navigation.
 - Ready for S5 (Design System & Global Layout).
+
+---
+Task ID: DB-SETUP
+Agent: Z.ai Code (main)
+Task: Automated database migration + per-session docs; establish workflow where agent handles all DB/GitHub work
+
+Work Log:
+- Discovered Supabase pooler (aws-0-ap-south-1.pooler.supabase.com:6543, IPv4) is reachable from sandbox (unlike direct host on port 5432 which is IPv6-only).
+- Installed pg library + @types/pg.
+- Created scripts/apply-migrations.ts: connects to Supabase via pooler, runs all SQL files in order, loads .env automatically, verifies results (table count, course count, etc.).
+- Created scripts/reset-db.ts: drops all tables/enums/functions/triggers in public schema for clean re-applies.
+- Added package.json scripts: db:apply, db:check, db:reset:hard.
+- Restructured migration files (fixed S2/S3 split bugs):
+  • 001_schema.sql: ALL 60 tables, 18 enums, 39 indexes (generated from full Prisma schema via prisma migrate diff).
+  • 002_triggers.sql: rewritten with dynamic DO loops — auto-covers all tables for updated_at triggers + RLS enable (no manual table lists).
+  • 003_rls.sql: merged S2+S3 policies (66 total); roles/permissions/role_permissions now public read (system metadata needed for getSession() RBAC lookups).
+  • Fixed invalid UUIDs in seeds (a0000000-... → cafe0000-..., m0000000-... → b0b00000-..., etc. — non-hex chars replaced).
+  • Removed buggy 004/005/006 split files.
+- Passwords parsed from .env (never hard-coded in source).
+- Ran db:reset:hard + db:apply: 60 tables, 1 course, 1 question, 11 roles created.
+- Created missing profile for test user (skillsetu.test.s4@gmail.com) that was created in S4 before the profile trigger existed.
+- Confirmed test user's email in auth.users (so login works without email verification).
+- Assigned super_admin role to test user.
+- Fixed RLS: roles/permissions/role_permissions were not publicly readable, causing getSession() to return null roles. Made them public read (system metadata).
+- Verified endpoints:
+  • GET /api/health → {status:"ok", schema:{status:"applied", courses:1}}
+  • GET /api/courses?lang=en → returns Excel Fundamentals course with translations + learning outcomes
+  • GET /api/quiz?slug=excel-intro-quiz → returns quiz with question (no is_correct)
+- Browser verification (agent-browser): logged in as test user → /dashboard → /console → dashboard renders with super_admin badge, "All permissions (super_admin)", module access cards, sidebar nav. No console errors.
+- Created docs/session/ folder with per-session docs: S0.md, S1.md, S2.md, S3.md, S4.md, DB-SETUP.md.
+- Updated docs/plan.md status table (added DB-SETUP row).
+- Rewrote db/README.md with automated workflow as primary method.
+- Caught a leaked password in a commit (scripts had hardcoded DB password) — soft reset to before the leak and re-committed cleanly. Verified no secrets in tracked files.
+- Committed and pushed to GitHub (commit e584a8a).
+
+Stage Summary:
+- Database fully applied: 60 tables, 18 enums, 66 RLS policies, triggers, seed data.
+- /api/health confirms schema.status:"applied", courses:1.
+- Test user has super_admin role; /console accessible end-to-end.
+- All migration/seed application is now automated (bun run db:apply) — no manual Dashboard work needed.
+- Per-session docs saved in docs/session/ on GitHub.
+- Workflow established: agent handles all DB/GitHub work automatically going forward.
+- Ready for S5 (Design System & Global Layout).
