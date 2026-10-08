@@ -1,6 +1,6 @@
 # SkillSetu — Database Design
 
-**Status:** S2 complete (Identity, Taxonomy, Content, Blocks/Media)
+**Status:** S2 + S3 complete (full schema: 60 tables)
 **Source of truth:** `prisma/schema.prisma`
 **Applied via:** `db/migrations/*.sql` (Supabase Dashboard SQL Editor)
 
@@ -156,3 +156,97 @@ Assessment (questions, quizzes, tests, attempts), Learner (enrollments,
 progress, bookmarks, notes), Editorial (assignments, reviews, revisions),
 Commerce (products, orders, payments, coupons, entitlements), SEO/Ops
 (seo_metadata, redirects, ad_slots, audit_logs, system_settings).
+
+---
+
+## S3 Entities (Phase 2.5–2.9)
+
+### Assessment (Phase 2.5)
+
+| Table | Purpose |
+|---|---|
+| `questions` | Core question entity; slug, type, difficulty, status |
+| `question_translations` | Per-language question text + explanation |
+| `question_options` | Options per question; `text` is JSONB `{en, hi}`, `is_correct` server-only |
+| `quizzes` | Chapter quizzes; linked to module/lesson |
+| `quiz_translations` | Per-language quiz title/instructions |
+| `quiz_questions` | Quiz ↔ Question junction |
+| `mock_tests` | Timed tests with question pool, randomization, pass/fail |
+| `test_translations` | Per-language test title/instructions |
+| `test_questions` | Test ↔ Question junction |
+| `attempts` | A learner's attempt at a quiz/test; score, status |
+| `attempt_answers` | Individual answers within an attempt |
+
+**Security:** `is_correct` on `question_options` is NEVER sent to the client
+before submission. The `assessmentService.preparePublicQuestion()` function
+strips it; only `gradeAnswer()` reveals correctness after submission.
+
+### Learner (Phase 2.6)
+
+| Table | Purpose |
+|---|---|
+| `enrollments` | User ↔ Course; progress %, started/completed |
+| `lesson_progress` | Per-lesson status (not_started/in_progress/completed), time spent, last position |
+| `bookmarks` | User bookmarks (course/lesson/book); deduped via unique constraint |
+| `notes` | Private notes on lessons/courses |
+
+**Server-authoritative:** Progress is never computed from client state alone.
+The service layer extracts `auth.uid()` from the session — client-provided
+`user_id` is never trusted.
+
+### Editorial (Phase 2.7)
+
+| Table | Purpose |
+|---|---|
+| `assignments` | Assign content to writers/translators |
+| `reviews` | Review requests + status (pending/approved/rejected/changes_requested) |
+| `revisions` | Full content snapshots for version history + rollback |
+| `editorial_comments` | Comments on content entities (resolvable) |
+| `translation_tasks` | Translation assignments with status tracking |
+| `audit_logs` | Immutable audit trail for admin actions |
+
+**RLS:** All editorial tables are service-role only (no public policies).
+Only the admin client (server-side, behind permission checks) can read/write.
+
+### Commerce (Phase 2.8)
+
+| Table | Purpose |
+|---|---|
+| `products` | Books, course access, resources, bundles |
+| `product_variants` | SKU, price, format (pdf/ebook/print), storage path |
+| `orders` | User orders; status, total, coupon, discount |
+| `order_items` | Line items in an order |
+| `payments` | Payment records; provider, status (provider-neutral abstraction) |
+| `coupons` | Fixed/percentage discounts, usage limits, expiry |
+| `entitlements` | User ↔ Product access grants (source: purchase/gift/grant) |
+| `course_products` | Course ↔ Product junction |
+| `course_books` | Course ↔ Book junction (recommended resources) |
+| `lesson_books` | Lesson ↔ Book junction |
+
+**Payment provider abstraction:** `PaymentProvider` enum supports `manual`,
+`razorpay`, `stripe`. The commerce service uses a provider-neutral interface;
+concrete provider is chosen at launch.
+
+### SEO / Marketing / Ops (Phase 2.9)
+
+| Table | Purpose |
+|---|---|
+| `seo_metadata` | Per-entity SEO (title, description, canonical, OG, noindex) |
+| `redirects` | 301 redirect manager (from_path → to_url) |
+| `ad_slots` | Ad slot configuration (header/content_top/.../footer) |
+| `affiliate_links` | Managed affiliate links with disclosure |
+| `custom_code` | Controlled head/body scripts (role-restricted, audited) |
+| `notifications` | In-app notifications (self-only access) |
+| `system_settings` | Key-value settings (public read if `is_public = true`) |
+
+---
+
+## RLS Policy Summary (S3)
+
+| Group | Public read | Self-only | Service-role only |
+|---|---|---|---|
+| Assessment (published) | ✅ questions, quizzes, tests, translations, options | attempts, attempt_answers | — |
+| Learner | — | enrollments, progress, bookmarks, notes | — |
+| Editorial | — | — | assignments, reviews, revisions, comments, translation_tasks, audit_logs |
+| Commerce | products, variants, junctions | orders, payments, entitlements | coupons |
+| SEO/Ops | seo_metadata, redirects (active), ad_slots (active), affiliate_links (active), custom_code (active), system_settings (public) | notifications | — |

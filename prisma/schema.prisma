@@ -62,6 +62,113 @@ enum CourseAuthorRole {
   contributor
 }
 
+// ── S3 enums ──
+
+enum QuestionType {
+  single_choice
+  multiple_choice
+  true_false
+  match
+  ordering
+  // future: fill_blank, scenario
+}
+
+enum DifficultyRank {
+  easy
+  medium
+  hard
+}
+
+enum AttemptStatus {
+  in_progress
+  completed
+  abandoned
+  expired
+}
+
+enum EntityType {
+  course
+  lesson
+  question
+  book
+  product
+}
+
+enum OrderStatus {
+  pending
+  paid
+  failed
+  refunded
+  cancelled
+}
+
+enum PaymentProvider {
+  manual
+  razorpay
+  stripe
+  // future providers
+}
+
+enum PaymentStatus {
+  initiated
+  pending
+  succeeded
+  failed
+  refunded
+}
+
+enum DiscountType {
+  fixed
+  percentage
+}
+
+enum CouponStatus {
+  active
+  inactive
+  expired
+}
+
+enum BookFormat {
+  pdf
+  ebook
+  print
+  workbook
+  notes
+  cheat_sheet
+  practice_pack
+  bundle
+}
+
+enum AdSlot {
+  header
+  content_top
+  content_middle
+  content_bottom
+  sidebar
+  footer
+}
+
+enum AssignmentStatus {
+  assigned
+  accepted
+  in_progress
+  submitted
+  completed
+  rejected
+}
+
+enum EditorialAction {
+  assign
+  review
+  approve
+  reject
+  publish
+  unpublish
+  archive
+  comment
+  revise
+}
+
 // ═══════════════════════════════════════════════════════════
 // IDENTITY  (Phase 2.1)
 // ═══════════════════════════════════════════════════════════
@@ -78,9 +185,9 @@ model Profile {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @map("updated_at")
 
-  userRoles       UserRole[]
-  uploadedMedia   MediaAsset[]
-  publishedCourses Course[] @relation("CoursePublisher")
+  userRoles        UserRole[]
+  uploadedMedia    MediaAsset[]
+  publishedCourses Course[]     @relation("CoursePublisher")
 
   @@map("profiles")
 }
@@ -140,36 +247,36 @@ model RolePermission {
 // ═══════════════════════════════════════════════════════════
 
 model Category {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug        String   @unique
-  parentId    String?  @map("parent_id") @db.Uuid
-  sortOrder   Int      @default(0) @map("sort_order")
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String        @unique
+  parentId    String?       @map("parent_id") @db.Uuid
+  sortOrder   Int           @default(0) @map("sort_order")
   status      ContentStatus @default(draft)
   icon        String?
-  publishedAt DateTime? @map("published_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @map("updated_at")
+  publishedAt DateTime?     @map("published_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @map("updated_at")
 
-  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Category[] @relation("CategoryHierarchy")
+  parent       Category?             @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[]            @relation("CategoryHierarchy")
   translations CategoryTranslation[]
-  courses     CourseCategory[]
+  courses      CourseCategory[]
 
   @@map("categories")
 }
 
 model CategoryTranslation {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  categoryId   String   @map("category_id") @db.Uuid
-  languageCode String   @map("language_code")
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId   String            @map("category_id") @db.Uuid
+  languageCode String            @map("language_code")
   name         String
   description  String?
   status       TranslationStatus @default(draft)
   // translator_id / reviewer_id are plain UUID FKs (see 002_triggers.sql)
-  translatorId String?  @map("translator_id") @db.Uuid
-  reviewerId   String?  @map("reviewer_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @default(now()) @map("updated_at")
+  translatorId String?           @map("translator_id") @db.Uuid
+  reviewerId   String?           @map("reviewer_id") @db.Uuid
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @default(now()) @map("updated_at")
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
@@ -178,11 +285,11 @@ model CategoryTranslation {
 }
 
 model Skill {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug      String   @unique
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String        @unique
   status    ContentStatus @default(draft)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @map("updated_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @map("updated_at")
 
   @@map("skills")
 }
@@ -228,46 +335,46 @@ model LessonTag {
 // ═══════════════════════════════════════════════════════════
 
 model Course {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug              String   @unique
-  status            ContentStatus @default(draft)
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug              String          @unique
+  status            ContentStatus   @default(draft)
   difficulty        DifficultyLevel @default(beginner)
-  estimatedDuration Int?     @map("estimated_duration") // minutes
-  thumbnailMediaId  String?  @map("thumbnail_media_id") @db.Uuid
-  defaultLanguage   String   @default("en") @map("default_language")
-  publishedAt       DateTime? @map("published_at")
-  publishedById     String?  @map("published_by") @db.Uuid
-  lastReviewedAt    DateTime? @map("last_reviewed_at")
-  nextReviewAt      DateTime? @map("next_review_at")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @default(now()) @map("updated_at")
+  estimatedDuration Int?            @map("estimated_duration") // minutes
+  thumbnailMediaId  String?         @map("thumbnail_media_id") @db.Uuid
+  defaultLanguage   String          @default("en") @map("default_language")
+  publishedAt       DateTime?       @map("published_at")
+  publishedById     String?         @map("published_by") @db.Uuid
+  lastReviewedAt    DateTime?       @map("last_reviewed_at")
+  nextReviewAt      DateTime?       @map("next_review_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @default(now()) @map("updated_at")
 
   translations CourseTranslation[]
   categories   CourseCategory[]
   authors      CourseAuthor[]
   modules      Module[]
   tags         CourseTag[]
-  publishedBy  Profile?     @relation("CoursePublisher", fields: [publishedById], references: [id])
-  thumbnail    MediaAsset?  @relation("CourseThumbnail", fields: [thumbnailMediaId], references: [id])
+  publishedBy  Profile?            @relation("CoursePublisher", fields: [publishedById], references: [id])
+  thumbnail    MediaAsset?         @relation("CourseThumbnail", fields: [thumbnailMediaId], references: [id])
 
   @@map("courses")
 }
 
 model CourseTranslation {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  courseId         String   @map("course_id") @db.Uuid
-  languageCode     String   @map("language_code")
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId         String            @map("course_id") @db.Uuid
+  languageCode     String            @map("language_code")
   title            String
-  shortDescription String?  @map("short_description")
+  shortDescription String?           @map("short_description")
   description      String?
-  learningOutcomes Json?    @map("learning_outcomes") // string[]
-  prerequisites    Json?    // string[]
-  targetAudience   Json?    @map("target_audience")    // string[]
+  learningOutcomes Json?             @map("learning_outcomes") // string[]
+  prerequisites    Json? // string[]
+  targetAudience   Json?             @map("target_audience") // string[]
   status           TranslationStatus @default(draft)
-  translatorId     String?  @map("translator_id") @db.Uuid
-  reviewerId       String?  @map("reviewer_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @default(now()) @map("updated_at")
+  translatorId     String?           @map("translator_id") @db.Uuid
+  reviewerId       String?           @map("reviewer_id") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @default(now()) @map("updated_at")
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
@@ -293,7 +400,7 @@ model CourseAuthor {
   authorId String           @map("author_id") @db.Uuid
   role     CourseAuthorRole @default(primary)
 
-  course Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, authorId])
   @@map("course_authors")
@@ -304,14 +411,14 @@ model CourseAuthor {
 // ═══════════════════════════════════════════════════════════
 
 model Module {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  courseId    String   @map("course_id") @db.Uuid
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId    String        @map("course_id") @db.Uuid
   slug        String
-  sortOrder   Int      @default(0) @map("sort_order")
+  sortOrder   Int           @default(0) @map("sort_order")
   status      ContentStatus @default(draft)
-  publishedAt DateTime? @map("published_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @map("updated_at")
+  publishedAt DateTime?     @map("published_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @map("updated_at")
 
   course       Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
   translations ModuleTranslation[]
@@ -322,15 +429,15 @@ model Module {
 }
 
 model ModuleTranslation {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  moduleId     String   @map("module_id") @db.Uuid
-  languageCode String   @map("language_code")
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moduleId     String            @map("module_id") @db.Uuid
+  languageCode String            @map("language_code")
   title        String
   description  String?
   status       TranslationStatus @default(draft)
-  translatorId String?  @map("translator_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @default(now()) @map("updated_at")
+  translatorId String?           @map("translator_id") @db.Uuid
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @default(now()) @map("updated_at")
 
   module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
@@ -339,18 +446,18 @@ model ModuleTranslation {
 }
 
 model Lesson {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  moduleId        String   @map("module_id") @db.Uuid
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moduleId        String        @map("module_id") @db.Uuid
   slug            String
-  sortOrder       Int      @default(0) @map("sort_order")
-  lessonType      LessonType @default(article) @map("lesson_type")
+  sortOrder       Int           @default(0) @map("sort_order")
+  lessonType      LessonType    @default(article) @map("lesson_type")
   status          ContentStatus @default(draft)
-  durationMinutes Int?     @map("duration_minutes")
-  publishedAt     DateTime? @map("published_at")
-  lastReviewedAt  DateTime? @map("last_reviewed_at")
-  nextReviewAt    DateTime? @map("next_review_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @default(now()) @map("updated_at")
+  durationMinutes Int?          @map("duration_minutes")
+  publishedAt     DateTime?     @map("published_at")
+  lastReviewedAt  DateTime?     @map("last_reviewed_at")
+  nextReviewAt    DateTime?     @map("next_review_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @default(now()) @map("updated_at")
 
   module       Module              @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   translations LessonTranslation[]
@@ -361,18 +468,18 @@ model Lesson {
 }
 
 model LessonTranslation {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  lessonId     String   @map("lesson_id") @db.Uuid
-  languageCode String   @map("language_code")
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lessonId     String            @map("lesson_id") @db.Uuid
+  languageCode String            @map("language_code")
   title        String
   summary      String?
   status       TranslationStatus @default(draft)
-  translatorId String?  @map("translator_id") @db.Uuid
-  reviewerId   String?  @map("reviewer_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @default(now()) @map("updated_at")
+  translatorId String?           @map("translator_id") @db.Uuid
+  reviewerId   String?           @map("reviewer_id") @db.Uuid
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @default(now()) @map("updated_at")
 
-  lesson Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lesson Lesson        @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   blocks LessonBlock[]
 
   @@unique([lessonId, languageCode])
@@ -401,26 +508,26 @@ model LessonBlock {
 }
 
 model MediaAsset {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  storagePath String   @map("storage_path")
-  bucket      String   @default("media")
-  fileName    String   @map("file_name")
-  fileType    String   @map("file_type") // image, pdf, document, …
-  mimeType    String   @map("mime_type")
-  sizeBytes   Int      @map("size_bytes")
-  width       Int?
-  height      Int?
-  altText     String?  @map("alt_text")
-  caption     String?
-  source      String?
-  license     String?
-  uploadedById String? @map("uploaded_by_id") @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @map("updated_at")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storagePath  String   @map("storage_path")
+  bucket       String   @default("media")
+  fileName     String   @map("file_name")
+  fileType     String   @map("file_type") // image, pdf, document, …
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  width        Int?
+  height       Int?
+  altText      String?  @map("alt_text")
+  caption      String?
+  source       String?
+  license      String?
+  uploadedById String?  @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
 
-  uploadedBy       Profile?   @relation(fields: [uploadedById], references: [id])
-  courseThumbnails  Course[]   @relation("CourseThumbnail")
-  usages            MediaUsage[]
+  uploadedBy       Profile?     @relation(fields: [uploadedById], references: [id])
+  courseThumbnails Course[]     @relation("CourseThumbnail")
+  usages           MediaUsage[]
 
   @@map("media_assets")
 }
@@ -436,4 +543,623 @@ model MediaUsage {
   media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@map("media_usages")
+}
+
+// ═══════════════════════════════════════════════════════════
+// ASSESSMENT  (Phase 2.5)
+// ═══════════════════════════════════════════════════════════
+
+model Question {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug              String         @unique
+  questionType      QuestionType   @map("question_type")
+  difficulty        DifficultyRank @default(easy)
+  status            ContentStatus  @default(draft)
+  topic             String?
+  // Optional link to a lesson for context
+  lessonId          String?        @map("lesson_id") @db.Uuid
+  authorId          String?        @map("author_id") @db.Uuid
+  reviewerId        String?        @map("reviewer_id") @db.Uuid
+  correctAnswerHash String?        @map("correct_answer_hash") // hash; raw answer stays server-side
+  publishedAt       DateTime?      @map("published_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @default(now()) @map("updated_at")
+
+  translations  QuestionTranslation[]
+  options       QuestionOption[]
+  quizQuestions QuizQuestion[]
+  testQuestions TestQuestion[]
+  attempts      AttemptAnswer[]
+
+  @@map("questions")
+}
+
+model QuestionTranslation {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId   String            @map("question_id") @db.Uuid
+  languageCode String            @map("language_code")
+  questionText String            @map("question_text")
+  explanation  String?
+  status       TranslationStatus @default(draft)
+  translatorId String?           @map("translator_id") @db.Uuid
+  reviewerId   String?           @map("reviewer_id") @db.Uuid
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @default(now()) @map("updated_at")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, languageCode])
+  @@map("question_translations")
+}
+
+model QuestionOption {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId String   @map("question_id") @db.Uuid
+  sortOrder  Int      @default(0) @map("sort_order")
+  // Per-language option text lives in a separate table to avoid duplication
+  // of option rows; for MVP we store text inline per-language via JSONB keyed by language_code.
+  text       Json // { "en": "...", "hi": "..." }
+  isCorrect  Boolean  @default(false) @map("is_correct")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("question_options")
+}
+
+model Quiz {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug         String        @unique
+  moduleId     String?       @map("module_id") @db.Uuid // optional link to a module
+  lessonId     String?       @map("lesson_id") @db.Uuid // optional link to a lesson
+  status       ContentStatus @default(draft)
+  passingScore Int           @default(60) @map("passing_score") // percentage
+  publishedAt  DateTime?     @map("published_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @default(now()) @map("updated_at")
+
+  translations QuizTranslation[]
+  questions    QuizQuestion[]
+
+  @@map("quizzes")
+}
+
+model QuizTranslation {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId       String            @map("quiz_id") @db.Uuid
+  languageCode String            @map("language_code")
+  title        String
+  instructions String?
+  status       TranslationStatus @default(draft)
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @default(now()) @map("updated_at")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, languageCode])
+  @@map("quiz_translations")
+}
+
+model QuizQuestion {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId     String @map("quiz_id") @db.Uuid
+  questionId String @map("question_id") @db.Uuid
+  sortOrder  Int    @default(0) @map("sort_order")
+
+  quiz     Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, questionId])
+  @@map("quiz_questions")
+}
+
+model MockTest {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug             String         @unique
+  courseId         String?        @map("course_id") @db.Uuid
+  status           ContentStatus  @default(draft)
+  timeLimitMinutes Int?           @map("time_limit_minutes")
+  questionCount    Int            @default(10) @map("question_count")
+  passingScore     Int            @default(60) @map("passing_score")
+  attemptsAllowed  Int?           @map("attempts_allowed")
+  randomize        Boolean        @default(false)
+  reviewMode       Boolean        @default(true) @map("review_mode")
+  difficulty       DifficultyRank @default(easy)
+  publishedAt      DateTime?      @map("published_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @default(now()) @map("updated_at")
+
+  translations TestTranslation[]
+  questions    TestQuestion[]
+  attempts     Attempt[]
+
+  @@map("mock_tests")
+}
+
+model TestTranslation {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  testId       String            @map("test_id") @db.Uuid
+  languageCode String            @map("language_code")
+  title        String
+  instructions String?
+  status       TranslationStatus @default(draft)
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @default(now()) @map("updated_at")
+
+  test MockTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, languageCode])
+  @@map("test_translations")
+}
+
+model TestQuestion {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  testId     String @map("test_id") @db.Uuid
+  questionId String @map("question_id") @db.Uuid
+  sortOrder  Int    @default(0) @map("sort_order")
+
+  test     MockTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, questionId])
+  @@map("test_questions")
+}
+
+model Attempt {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  assessmentType   String        @map("assessment_type") // 'quiz' | 'mock_test'
+  assessmentId     String        @map("assessment_id") @db.Uuid
+  status           AttemptStatus @default(in_progress)
+  score            Int? // percentage 0-100
+  totalQuestions   Int?          @map("total_questions")
+  correctCount     Int?          @map("correct_count")
+  startedAt        DateTime      @default(now()) @map("started_at")
+  completedAt      DateTime?     @map("completed_at")
+  timeSpentSeconds Int?          @map("time_spent_seconds")
+  languageCode     String        @default("en") @map("language_code")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @default(now()) @map("updated_at")
+
+  answers    AttemptAnswer[]
+  mockTest   MockTest?       @relation(fields: [mockTestId], references: [id])
+  mockTestId String?         @db.Uuid
+
+  @@map("attempts")
+}
+
+model AttemptAnswer {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attemptId       String   @map("attempt_id") @db.Uuid
+  questionId      String   @map("question_id") @db.Uuid
+  selectedOptions Json?    @map("selected_options") // string[] of option IDs
+  isCorrect       Boolean? @map("is_correct")
+  answeredAt      DateTime @default(now()) @map("answered_at")
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("attempt_answers")
+}
+
+// ═══════════════════════════════════════════════════════════
+// LEARNER  (Phase 2.6)
+// ═══════════════════════════════════════════════════════════
+
+model Enrollment {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  courseId        String    @map("course_id") @db.Uuid
+  status          String    @default("active") // active | completed | archived
+  progressPercent Int       @default(0) @map("progress_percent")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  lastAccessedAt  DateTime? @map("last_accessed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+
+  progress LessonProgress[]
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  lessonId         String    @map("lesson_id") @db.Uuid
+  enrollmentId     String?   @map("enrollment_id") @db.Uuid
+  status           String    @default("not_started") // not_started | in_progress | completed
+  progressPercent  Int       @default(0) @map("progress_percent")
+  timeSpentSeconds Int       @default(0) @map("time_spent_seconds")
+  lastPosition     Json?     @map("last_position") // { block_id, scroll_y } etc
+  startedAt        DateTime? @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+  lastAccessedAt   DateTime? @map("last_accessed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @map("updated_at")
+
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, lessonId])
+  @@map("lesson_progress")
+}
+
+model Bookmark {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String     @map("user_id") @db.Uuid
+  entityType EntityType @map("entity_type")
+  entityId   String     @map("entity_id") @db.Uuid
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@unique([userId, entityType, entityId])
+  @@map("bookmarks")
+}
+
+model Note {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  lessonId  String?  @map("lesson_id") @db.Uuid
+  courseId  String?  @map("course_id") @db.Uuid
+  content   String
+  isPrivate Boolean  @default(true) @map("is_private")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("notes")
+}
+
+// ═══════════════════════════════════════════════════════════
+// EDITORIAL  (Phase 2.7)
+// ═══════════════════════════════════════════════════════════
+
+model Assignment {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assigneeId   String           @map("assignee_id") @db.Uuid
+  assignerId   String           @map("assigner_id") @db.Uuid
+  entityType   EntityType       @map("entity_type")
+  entityId     String           @map("entity_id") @db.Uuid
+  status       AssignmentStatus @default(assigned)
+  dueDate      DateTime?        @map("due_date")
+  instructions String?
+  completedAt  DateTime?        @map("completed_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @default(now()) @map("updated_at")
+
+  @@map("assignments")
+}
+
+model Review {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reviewerId String     @map("reviewer_id") @db.Uuid
+  entityType EntityType @map("entity_type")
+  entityId   String     @map("entity_id") @db.Uuid
+  status     String     @default("pending") // pending | approved | rejected | changes_requested
+  feedback   String?
+  reviewedAt DateTime?  @map("reviewed_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @default(now()) @map("updated_at")
+
+  @@map("reviews")
+}
+
+model Revision {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType     EntityType @map("entity_type")
+  entityId       String     @map("entity_id") @db.Uuid
+  editorId       String     @map("editor_id") @db.Uuid
+  revisionNumber Int        @map("revision_number")
+  snapshot       Json // full content snapshot at this revision
+  changeSummary  String?    @map("change_summary")
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  @@map("revisions")
+}
+
+model EditorialComment {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType EntityType @map("entity_type")
+  entityId   String     @map("entity_id") @db.Uuid
+  authorId   String     @map("author_id") @db.Uuid
+  comment    String
+  resolved   Boolean    @default(false)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @default(now()) @map("updated_at")
+
+  @@map("editorial_comments")
+}
+
+model TranslationTask {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType     EntityType        @map("entity_type")
+  entityId       String            @map("entity_id") @db.Uuid
+  targetLanguage String            @map("target_language")
+  translatorId   String?           @map("translator_id") @db.Uuid
+  reviewerId     String?           @map("reviewer_id") @db.Uuid
+  status         TranslationStatus @default(draft)
+  dueDate        DateTime?         @map("due_date")
+  completedAt    DateTime?         @map("completed_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @default(now()) @map("updated_at")
+
+  @@map("translation_tasks")
+}
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String // e.g. 'course.publish', 'user.role.assign'
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMMERCE  (Phase 2.8)
+// ═══════════════════════════════════════════════════════════
+
+model Product {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String        @unique
+  productType String        @map("product_type") // 'book' | 'course_access' | 'resource' | 'bundle'
+  status      ContentStatus @default(draft)
+  priceCents  Int           @default(0) @map("price_cents")
+  currency    String        @default("INR")
+  publishedAt DateTime?     @map("published_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @map("updated_at")
+
+  variants     ProductVariant[]
+  orderItems   OrderItem[]
+  entitlements Entitlement[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId   String      @map("product_id") @db.Uuid
+  sku         String?     @unique
+  name        String
+  priceCents  Int         @map("price_cents")
+  format      BookFormat?
+  storagePath String?     @map("storage_path") // for digital downloads
+  isDefault   Boolean     @default(false) @map("is_default")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @default(now()) @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_variants")
+}
+
+model Order {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  status        OrderStatus @default(pending)
+  totalCents    Int         @map("total_cents")
+  currency      String      @default("INR")
+  couponId      String?     @map("coupon_id") @db.Uuid
+  discountCents Int         @default(0) @map("discount_cents")
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @default(now()) @map("updated_at")
+
+  items    OrderItem[]
+  payments Payment[]
+  coupon   Coupon?     @relation(fields: [couponId], references: [id])
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId          String   @map("order_id") @db.Uuid
+  productId        String   @map("product_id") @db.Uuid
+  productVariantId String?  @map("product_variant_id") @db.Uuid
+  quantity         Int      @default(1)
+  unitPriceCents   Int      @map("unit_price_cents")
+  totalPriceCents  Int      @map("total_price_cents")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
+
+model Payment {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String          @map("order_id") @db.Uuid
+  provider          PaymentProvider @default(manual)
+  providerPaymentId String?         @map("provider_payment_id")
+  amountCents       Int             @map("amount_cents")
+  currency          String          @default("INR")
+  status            PaymentStatus   @default(initiated)
+  failureReason     String?         @map("failure_reason")
+  paidAt            DateTime?       @map("paid_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @default(now()) @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Coupon {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code             String       @unique
+  description      String?
+  discountType     DiscountType @map("discount_type")
+  discountValue    Int          @map("discount_value") // cents or percentage points
+  minOrderCents    Int          @default(0) @map("min_order_cents")
+  maxDiscountCents Int?         @map("max_discount_cents")
+  usageLimit       Int?         @map("usage_limit")
+  usedCount        Int          @default(0) @map("used_count")
+  perUserLimit     Int?         @map("per_user_limit")
+  startsAt         DateTime?    @map("starts_at")
+  expiresAt        DateTime?    @map("expires_at")
+  status           CouponStatus @default(active)
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @default(now()) @map("updated_at")
+
+  orders Order[]
+
+  @@map("coupons")
+}
+
+model Entitlement {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  productId     String    @map("product_id") @db.Uuid
+  orderId       String?   @map("order_id") @db.Uuid
+  source        String    @default("purchase") // purchase | gift | grant | coupon
+  expiresAt     DateTime?
+  downloadCount Int       @default(0) @map("download_count")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("entitlements")
+}
+
+model CourseProduct {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId  String @map("course_id") @db.Uuid
+  productId String @map("product_id") @db.Uuid
+
+  @@unique([courseId, productId])
+  @@map("course_products")
+}
+
+model CourseBook {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId  String @map("course_id") @db.Uuid
+  bookId    String @map("book_id") @db.Uuid // book is a Product with product_type='book'
+  sortOrder Int    @default(0) @map("sort_order")
+
+  @@unique([courseId, bookId])
+  @@map("course_books")
+}
+
+model LessonBook {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lessonId  String @map("lesson_id") @db.Uuid
+  bookId    String @map("book_id") @db.Uuid
+  sortOrder Int    @default(0) @map("sort_order")
+
+  @@unique([lessonId, bookId])
+  @@map("lesson_books")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SEO / MARKETING / OPS  (Phase 2.9)
+// ═══════════════════════════════════════════════════════════
+
+model SeoMetadata {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType      String   @map("entity_type") // course, lesson, category, book, page
+  entityId        String   @map("entity_id") @db.Uuid
+  languageCode    String   @default("en") @map("language_code")
+  seoTitle        String?  @map("seo_title")
+  metaDescription String?  @map("meta_description")
+  canonicalUrl    String?  @map("canonical_url")
+  noindex         Boolean  @default(false)
+  ogTitle         String?  @map("og_title")
+  ogDescription   String?  @map("og_description")
+  ogImageMediaId  String?  @map("og_image_media_id") @db.Uuid
+  twitterCard     String?  @map("twitter_card") // summary | summary_large_image
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @map("updated_at")
+
+  @@unique([entityType, entityId, languageCode])
+  @@map("seo_metadata")
+}
+
+model Redirect {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fromPath   String   @unique @map("from_path")
+  toUrl      String   @map("to_url")
+  statusCode Int      @default(301) @map("status_code")
+  isActive   Boolean  @default(true) @map("is_active")
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@map("redirects")
+}
+
+model AdSlotConfig {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slot      AdSlot
+  name      String
+  code      String? // ad network code or HTML snippet
+  isActive  Boolean   @default(false) @map("is_active")
+  startsAt  DateTime? @map("starts_at")
+  endsAt    DateTime? @map("ends_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @map("updated_at")
+
+  @@map("ad_slots")
+}
+
+model AffiliateLink {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider       String
+  productName    String   @map("product_name")
+  destinationUrl String   @map("destination_url")
+  trackingUrl    String?  @map("tracking_url")
+  disclosure     String?
+  placement      String? // where this link is used
+  campaign       String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+
+  @@map("affiliate_links")
+}
+
+model CustomCode {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  location    String // head | body_start | body_end
+  code        String
+  pagePattern String?  @map("page_pattern") // glob pattern for page-specific code
+  isActive    Boolean  @default(false) @map("is_active")
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@map("custom_code")
+}
+
+model Notification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  type       String // course_update, purchase, assessment, certificate, editorial_assignment, review_request
+  title      String
+  message    String
+  url        String?
+  readStatus Boolean  @default(false) @map("read_status")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model SystemSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String   @unique
+  value     String
+  category  String   @default("general")
+  isPublic  Boolean  @default(false) @map("is_public")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("system_settings")
 }

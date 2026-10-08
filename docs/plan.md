@@ -29,7 +29,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Supabase project provisioned | ✅ (credentials provided) |
 | Infrastructure & Supabase wiring | ✅ S1 |
 | Database schema — Identity, Taxonomy, Content | ✅ S2 |
-| Development continued | ⏳ Awaiting user confirmation for S3 |
+| Database schema — Assessment, Learner, Editorial, Commerce, SEO/Ops | ✅ S3 |
+| Development continued | ⏳ Awaiting user confirmation for S4 |
 
 ---
 
@@ -165,28 +166,37 @@ a local machine with port 5432 access). The `/api/health` endpoint reports
 
 ---
 
-### S3 — Database Schema (Part 2): Assessment, Learner, Editorial, Commerce, SEO/Ops
+### S3 — Database Schema (Part 2): Assessment, Learner, Editorial, Commerce, SEO/Ops ✅
 **Phase:** 2.5–2.9
 
 **Scope:**
-- **Assessment:** `questions`, `question_translations`, `question_options`, `quizzes`,
-  `quiz_questions`, `tests`, `test_questions`, `attempts`, `attempt_answers`.
-- **Learner:** `enrollments`, `lesson_progress`, `bookmarks`, `notes` (unique constraints + indexes).
-- **Editorial:** `assignments`, `reviews`, `revisions`, `editorial_comments`, `translation_tasks`.
-- **Commerce:** `products`, `product_variants`, `orders`, `order_items`, `payments`,
-  `coupons`, `entitlements`, `course_products`, `course_books`, `lesson_books`.
-- **SEO/Ops:** `seo_metadata`, `redirects`, `ad_slots`, `affiliate_links`, `custom_code`,
-  `audit_logs`, `notifications`, `system_settings`.
-- Certificate-ready fields (future): placeholder columns only.
-- Audit-log helper + immutable-from-UI policy.
+- **Assessment:** `questions`, `question_translations`, `question_options`, `quizzes`, `quiz_translations`, `quiz_questions`, `mock_tests`, `test_translations`, `test_questions`, `attempts`, `attempt_answers`.
+- **Learner:** `enrollments`, `lesson_progress`, `bookmarks`, `notes`.
+- **Editorial:** `assignments`, `reviews`, `revisions`, `editorial_comments`, `translation_tasks`, `audit_logs`.
+- **Commerce:** `products`, `product_variants`, `orders`, `order_items`, `payments`, `coupons`, `entitlements`, `course_products`, `course_books`, `lesson_books`.
+- **SEO/Ops:** `seo_metadata`, `redirects`, `ad_slots`, `affiliate_links`, `custom_code`, `notifications`, `system_settings`.
+- 13 new enums (QuestionType, AttemptStatus, EntityType, OrderStatus, PaymentProvider, DiscountType, CouponStatus, BookFormat, AdSlot, AssignmentStatus, EditorialAction, DifficultyRank, PaymentStatus).
+- RLS: published assessment public read (is_correct stripped); learner data self-only; editorial service-role only; commerce products public, orders self-only; SEO/ops public read active.
+- Seed: sample question (4 options, EN+HI), quiz linked to lesson, book product, coupon (WELCOME10).
 
 **Deliverables:**
-- Prisma migration `002_assessment_learner_editorial_commerce_seo`.
-- Updated `docs/database.md`.
+- `prisma/schema.prisma` extended (now 60 models, 18 enums total).
+- `db/migrations/004_tables_s3.sql` — 38 new tables, 13 enums, 21 indexes.
+- `db/migrations/005_rls_s3.sql` — RLS policies for S3 tables.
+- `db/migrations/006_triggers_s3.sql` — idempotent updated_at triggers on S3 tables.
+- `db/seeds/002_seed_s3.sql` — sample question, quiz, book, coupon.
+- `src/lib/learning/assessment-types.ts` + `learner-types.ts` — TypeScript types.
+- `src/lib/learning/assessment-service.ts` — getPublishedQuizBySlug, gradeAnswer (strips is_correct).
+- `src/lib/learning/progress-service.ts` — enrollments, progress, bookmarks, notes (self-scoped).
+- `/api/quiz`, `/api/quiz/grade`, `/api/progress/lesson` routes.
+- Updated `docs/database.md`, `db/README.md`.
 
 **Acceptance:**
-- Full schema applies on a clean Supabase project.
-- All foreign keys, unique constraints and indexes present.
+- SQL files run cleanly after S2 files (order 004→005→006→seed002).
+- `/api/quiz?slug=excel-intro-quiz` returns quiz with questions (no is_correct).
+- `/api/quiz/grade` reveals correct answers only after submission.
+- `/api/progress/lesson` requires authentication (401 if not signed in).
+- Learner data is self-only (RLS enforced).
 
 ---
 
