@@ -251,7 +251,7 @@ export function RelatedContentBlock({ data }: { data: BlockData }) {
 // QUIZ (placeholder — full quiz UI in S8)
 // ═══════════════════════════════════════════════════════════
 export function QuizBlock({ data }: { data: BlockData }) {
-  const quizId = asString(data.quiz_id || data.quizId)
+  const quizSlug = asString(data.quiz_slug || data.quizSlug)
   const title = asString(data.title) || 'Quick Check'
   return (
     <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
@@ -262,9 +262,9 @@ export function QuizBlock({ data }: { data: BlockData }) {
       <p className="text-sm text-muted-foreground">
         Test your understanding with a quick quiz.
       </p>
-      {quizId && (
+      {quizSlug && (
         <Link
-          href={`/quiz/${quizId}`}
+          href={`/quiz/${quizSlug}`}
           className="text-sm text-primary hover:underline font-medium"
         >
           Start quiz →

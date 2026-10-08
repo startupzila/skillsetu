@@ -464,3 +464,46 @@ Stage Summary:
 - Search across courses + lessons + questions (PostgreSQL ILIKE for MVP).
 - All public pages now built (homepage, categories, courses, course detail, lesson, search).
 - Ready for S8 (Learning system: progress, bookmarks, notes, quizzes, mock tests).
+
+---
+Task ID: S8
+Agent: Z.ai Code (main)
+Task: Learning system — progress, bookmarks, notes, quizzes
+
+Work Log:
+- Created API routes:
+  • /api/bookmarks (GET list, POST toggle) — requires auth, RLS enforces self-only.
+  • /api/notes (GET list, POST create) + /api/notes/[id] (PATCH update, DELETE) — requires auth.
+  • /api/quiz/attempts (POST start attempt, PUT submit+grade) — requires auth, server-side scoring.
+- Added getLessonUserState(lessonId) to lesson-service.ts — returns progress + bookmark state.
+- Created client components:
+  • bookmark-button.tsx: toggles bookmark via POST /api/bookmarks, toast feedback, filled icon when saved.
+  • note-editor.tsx: full CRUD (create/list/edit/delete) via /api/notes, scrollable list, toast feedback.
+  • lesson-actions.tsx: action bar combining BookmarkButton + Notes (Sheet) + Mark as complete.
+  • quiz-runner.tsx: interactive quiz (answering → submitting → results phases), progress bar, per-question
+    review with correct/incorrect highlighting + explanations, "Try again" retry.
+- Created /quiz/[slug] page: server component fetches quiz + questions (is_correct stripped),
+  renders QuizRunner, breadcrumbs, pass score info, generateMetadata for SEO.
+- Updated lesson page to fetch getLessonUserState() and use LessonActions (replaced disabled buttons).
+- Updated QuizBlock in ContentRenderer to use quiz_slug (links to real quiz page).
+- Fixed bug: /api/quiz/attempts PUT was selecting non-existent passing_score column from attempts
+  (it's on quizzes table) — now fetches passing_score from quizzes separately.
+- Fixed bug: QuizRunner expected camelCase (correctCount, total, answers) but API returned snake_case
+  (correct_count, total_questions, results) — added response mapping.
+- Ran bun run lint — passed clean, zero errors.
+- Browser verification (agent-browser, logged in as test user):
+  • Lesson page: Save → "Saved" + toast "Lesson saved to your bookmarks".
+  • Mark as complete → "Lesson completed! Your progress has been saved".
+  • Notes Sheet opens with NoteEditor.
+  • Quiz page: renders question + 4 options + progress bar + pass score.
+  • Select answer + Submit → results: "Congratulations! You scored 100% (1/1 correct)" + Try again + Review answers.
+  • Review shows correct option highlighted green, selected incorrect highlighted red.
+- Created docs/session/S8.md. Updated docs/plan.md (S8 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Full learning system: lesson completion (server-authoritative), bookmarks (toggle), notes (CRUD, private),
+  chapter quizzes (interactive with scoring + review + retry).
+- All learner data is self-only (RLS enforced). Quiz scoring is server-side.
+- Correct answers revealed only after submission.
+- Ready for S9 (Console: layout, course/module/lesson CRUD).

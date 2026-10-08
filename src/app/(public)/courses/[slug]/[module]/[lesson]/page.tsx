@@ -1,8 +1,12 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { getPublishedLessonBySlug, getPublishedCourseBySlug } from '@/lib/content'
-import { ContentRenderer } from '@/components/learning'
+import {
+  getPublishedLessonBySlug,
+  getPublishedCourseBySlug,
+  getLessonUserState,
+} from '@/lib/content'
+import { ContentRenderer, LessonActions } from '@/components/learning'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,8 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Bookmark,
-  NotebookPen,
   ListChecks,
 } from 'lucide-react'
 
@@ -60,6 +62,9 @@ export default async function LessonPage({ params }: PageProps) {
   const courseT = courseResult.data.translations[0]
   const modT = courseResult.data.modules.find((m) => m.id === mod.id)?.translations[0]
 
+  // Fetch user state (bookmark + progress) — null if not authenticated
+  const userState = await getLessonUserState(lessonData.id)
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumbs */}
@@ -96,16 +101,14 @@ export default async function LessonPage({ params }: PageProps) {
               <p className="text-lg text-muted-foreground">{translation.summary}</p>
             )}
 
-            {/* Action buttons (bookmark + notes wired in S8) */}
-            <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" disabled title="Sign in to bookmark">
-                <Bookmark className="h-4 w-4 mr-1.5" />
-                Save
-              </Button>
-              <Button variant="outline" size="sm" disabled title="Sign in to add notes">
-                <NotebookPen className="h-4 w-4 mr-1.5" />
-                Notes
-              </Button>
+            {/* Action buttons (bookmark + notes + complete) */}
+            <div className="pt-2">
+              <LessonActions
+                lessonId={lessonData.id}
+                courseSlug={course.slug}
+                initialBookmarked={userState.bookmarked}
+                initialCompleted={userState.progress?.status === 'completed'}
+              />
             </div>
           </header>
 

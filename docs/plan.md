@@ -35,7 +35,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Design system & global layout | ✅ S5 |
 | Public website — homepage, categories, course pages | ✅ S6 |
 | Lesson renderer & search | ✅ S7 |
-| Development continued | ⏳ Awaiting user confirmation for S8 |
+| Learning system — progress, bookmarks, notes, quizzes | ✅ S8 |
+| Development continued | ⏳ Awaiting user confirmation for S9 |
 
 ---
 

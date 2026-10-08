@@ -1,1 +1,5 @@
 export { ContentRenderer } from './content-renderer'
+export { BookmarkButton } from './bookmark-button'
+export { NoteEditor } from './note-editor'
+export { LessonActions } from './lesson-actions'
+export { QuizRunner } from './quiz-runner'

@@ -102,3 +102,37 @@ export async function getPublishedLessonBySlug(
     error: null,
   }
 }
+
+/**
+ * Get the current user's progress + bookmark state for a lesson.
+ * Returns null for both if not authenticated.
+ */
+export async function getLessonUserState(lessonId: string) {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { progress: null, bookmarked: false }
+
+  const [progressRes, bookmarkRes] = await Promise.all([
+    supabase
+      .from('lesson_progress')
+      .select('status, progress_percent, completed_at')
+      .eq('user_id', user.id)
+      .eq('lesson_id', lessonId)
+      .single(),
+    supabase
+      .from('bookmarks')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('entity_type', 'lesson')
+      .eq('entity_id', lessonId)
+      .maybeSingle(),
+  ])
+
+  return {
+    progress: progressRes.data,
+    bookmarked: !!bookmarkRes.data,
+  }
+}
