@@ -507,3 +507,46 @@ Stage Summary:
 - All learner data is self-only (RLS enforced). Quiz scoring is server-side.
 - Correct answers revealed only after submission.
 - Ready for S9 (Console: layout, course/module/lesson CRUD).
+
+---
+Task ID: S9
+Agent: Z.ai Code (main)
+Task: w3schools-style lesson layout + console course/module/lesson CRUD
+
+Work Log:
+- Created CourseSidebar component (w3schools-style): fixed left sidebar with all modules + lessons,
+  current module expanded, others collapsible, current lesson highlighted.
+- Created PrevNextNav component: 3-column layout (Previous | Current Title | Next), used at TOP and BOTTOM.
+  Cross-module navigation (flattens all lessons to find adjacent).
+- Created MobileCourseNav: hamburger "Chapters" button → opens CourseSidebar in a left Sheet (mobile/tablet only).
+- Rewrote lesson page with w3schools layout: fixed sidebar on desktop (sticky, full height),
+  Chapters button on mobile, Prev/Next at top + bottom.
+- Created src/lib/admin/content-service.ts: adminListCourses, adminGetCourse, adminCreateCourse,
+  adminUpdateCourse, adminPublishCourse, adminArchiveCourse, adminListModules, adminCreateModule,
+  adminCreateLesson, adminPublishLesson, adminUpdateLessonTranslation. All use service-role admin client,
+  require permission checks, record audit logs.
+- Created admin API routes: /api/admin/courses (GET list, POST create), /api/admin/courses/[id] (PATCH update,
+  POST publish/archive), /api/admin/lessons (GET single, POST create/publish/update-translation).
+- Created console pages:
+  • /console/courses: courses table with status, difficulty, duration, actions (edit/view/publish/archive).
+  • /console/courses/new: create course form (title, auto-slug, difficulty, duration, descriptions, outcomes).
+  • /console/courses/[id]: course editor with course info + curriculum (modules + lessons).
+  • /console/courses/[id]/lessons/[lessonId]: lesson editor (title, summary, save, publish).
+- Fixed bug: course editor was using anon client (RLS blocked drafts) → switched to adminGetCourse.
+- Cleaned up test courses created during browser testing.
+- Ran bun run lint — passed clean, zero errors.
+- Browser verification (agent-browser, logged in as super_admin):
+  • Lesson desktop (1280px): fixed sidebar with both modules + lessons, current highlighted, prev/next top+bottom.
+  • Lesson mobile (375px): "Chapters" button → Sheet with full curriculum.
+  • Console courses: table with 4 courses, status badges, action buttons.
+  • New Course form: all fields, auto-slug, "Create course" creates + redirects to editor.
+  • Course editor: shows draft status, course info, curriculum with modules + lessons.
+  • No console errors.
+- Created docs/session/S9.md. Updated docs/plan.md (S9 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- w3schools-style lesson layout: fixed left sidebar (all chapters), prev/next at top+bottom, mobile menu.
+- Console CRUD: courses list, create, editor with curriculum; lesson editor (basic).
+- All admin operations permission-checked + audit-logged.
+- Ready for S10 (Console: content-block editor, questions, editorial workflow, translations).

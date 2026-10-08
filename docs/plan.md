@@ -36,7 +36,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Public website — homepage, categories, course pages | ✅ S6 |
 | Lesson renderer & search | ✅ S7 |
 | Learning system — progress, bookmarks, notes, quizzes | ✅ S8 |
-| Development continued | ⏳ Awaiting user confirmation for S9 |
+| Console — w3schools lesson layout + course/module/lesson CRUD | ✅ S9 |
+| Development continued | ⏳ Awaiting user confirmation for S10 |
 
 ---
 
