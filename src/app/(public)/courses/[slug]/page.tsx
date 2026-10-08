@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { getPublishedCourseBySlug, listPublishedCourses } from '@/lib/content'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { CourseCard } from '@/components/shared'
+import { JsonLdCourse, JsonLdBreadcrumbs } from '@/components/seo/json-ld'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -79,8 +80,24 @@ export default async function CoursePage({ params }: PageProps) {
     0,
   )
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const courseUrl = `${siteUrl}/courses/${course.slug}`
+
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* JSON-LD structured data */}
+      <JsonLdCourse course={course} courseUrl={courseUrl} />
+      <JsonLdBreadcrumbs
+        items={[
+          { name: 'Home', url: siteUrl },
+          { name: 'Courses', url: `${siteUrl}/courses` },
+          ...(catSlug
+            ? [{ name: categories![0].translations[0]?.name ?? catSlug, url: `${siteUrl}/skills/${catSlug}` }]
+            : []),
+          { name: t.title, url: courseUrl },
+        ]}
+      />
+
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[

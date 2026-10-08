@@ -39,12 +39,32 @@ export async function middleware(request: NextRequest) {
     },
   )
 
+  const pathname = request.nextUrl.pathname
+
+  // ── Redirect manager (301/302) ──────────────────────────
+  // Check if the path matches a redirect before anything else.
+  // Skip API routes and static assets.
+  if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
+    const { data: redirect } = await supabase
+      .from('redirects')
+      .select('to_url, status_code')
+      .eq('from_path', pathname)
+      .eq('is_active', true)
+      .single()
+
+    if (redirect) {
+      const statusCode = redirect.status_code === 302 ? 302 : 301
+      const targetUrl = redirect.to_url.startsWith('http')
+        ? redirect.to_url
+        : new URL(redirect.to_url, request.url).toString()
+      return NextResponse.redirect(targetUrl, statusCode)
+    }
+  }
+
   // Refresh the session (this updates cookies via the setAll above)
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  const pathname = request.nextUrl.pathname
 
   // Protect /console/* — must be authenticated
   if (pathname.startsWith('/console') && !user) {

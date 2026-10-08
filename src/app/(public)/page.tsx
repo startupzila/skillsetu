@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CourseCard } from '@/components/shared'
+import { JsonLdWebsite } from '@/components/seo/json-ld'
 import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
 import { BookOpen, GraduationCap, Languages, Sparkles, ArrowRight } from 'lucide-react'
 
@@ -19,6 +20,7 @@ export default async function Home() {
 
   return (
     <>
+      <JsonLdWebsite />
       {/* Hero */}
       <section className="border-b bg-gradient-to-b from-brand-muted/40 to-background">
         <div className="container mx-auto px-4 py-20 text-center space-y-6">

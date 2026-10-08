@@ -39,7 +39,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Console — w3schools lesson layout + course/module/lesson CRUD | ✅ S9 |
 | Console — block editor, questions, editorial workflow | ✅ S10 |
 | Media library & video foundation | ✅ S11 |
-| Development continued | ⏳ Awaiting user confirmation for S12 |
+| SEO system — sitemap, robots, JSON-LD, redirects | ✅ S12 |
+| Development continued | ⏳ Awaiting user confirmation for S13 |
 
 ---
 

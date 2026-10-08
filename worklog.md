@@ -648,3 +648,44 @@ Stage Summary:
 - Storage buckets: media (public) + downloads (private).
 - File upload validation (type + size, max 10MB).
 - Ready for S12 (SEO system).
+
+---
+Task ID: S12
+Agent: Z.ai Code (main)
+Task: SEO system — sitemap, robots, JSON-LD, redirects
+
+Work Log:
+- Created SEO service (src/lib/seo/seo-service.ts): getSeoMetadata (read per-entity SEO metadata),
+  matchRedirect, admin list/create/delete/toggle redirects, admin list/upsert SEO metadata.
+- Created dynamic sitemap.ts: generates URLs for static pages, published categories, courses, lessons.
+  18 URLs generated from seed data. Only published content (RLS enforced).
+- Created robots.ts: allows all crawlers on /, disallows /console/, /api/, /dashboard, references sitemap.
+- Removed conflicting public/robots.txt (was conflicting with the new robots.ts route).
+- Updated middleware to check redirects on every request: queries redirects table for matching
+  from_path + is_active=true, returns 301/302 redirect before any other processing.
+- Created JSON-LD components (src/components/seo/json-ld.tsx):
+  • JsonLdWebsite (schema.org/WebSite with SearchAction) — on homepage.
+  • JsonLdCourse (schema.org/Course with provider, educationalLevel, CourseInstance) — on course pages.
+  • JsonLdBreadcrumbs (schema.org/BreadcrumbList) — on course pages.
+- Added JSON-LD to course detail page (JsonLdCourse + JsonLdBreadcrumbs).
+- Added JsonLdWebsite to homepage.
+- Created redirect API routes: GET/POST /api/admin/redirects, POST/DELETE /api/admin/redirects/[id].
+- Created /console/redirects page with RedirectsManager component (create form, table, toggle, delete).
+- Added "SEO" section to console sidebar with "Redirects" link.
+- Seeded test redirect: /excel → /courses/excel-fundamentals (301, active).
+- Ran bun run lint — passed clean, zero errors.
+- Verified:
+  • Sitemap: 18 URLs (static + categories + courses + lessons).
+  • robots.txt: correct output (Allow /, Disallow console/api/dashboard, Sitemap reference).
+  • Redirect: /excel → HTTP 301 → /courses/excel-fundamentals.
+  • JSON-LD on course page: Course, CourseInstance, Organization, BreadcrumbList, ListItem.
+  • Console redirects page: shows create form + table with /excel redirect (301, Active).
+  • No console errors.
+- Created docs/session/S12.md. Updated docs/plan.md (S12 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Dynamic XML sitemap (18 URLs), robots.txt, JSON-LD (Course, Breadcrumbs, Website).
+- Redirect manager: 301/302 redirects in middleware, console UI for CRUD.
+- Per-entity SEO metadata service ready (seo_metadata table).
+- Ready for S13 (Static pages + custom code manager).
