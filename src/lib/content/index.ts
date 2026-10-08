@@ -8,6 +8,6 @@
  * @see prisma/schema.prisma
  */
 export { listPublishedCategories, getPublishedCategoryBySlug } from './category-service'
-export { listPublishedCourses, getPublishedCourseBySlug } from './course-service'
+export { listPublishedCourses, listPublishedCoursesByCategory, getPublishedCourseBySlug } from './course-service'
 export { getPublishedLessonBySlug } from './lesson-service'
 export type * from './types'

@@ -54,6 +54,61 @@ export async function listPublishedCourses(language?: LanguageCode) {
   return { data: withTranslation, error: null, code: null }
 }
 
+/** List published courses belonging to a specific category (by category slug). */
+export async function listPublishedCoursesByCategory(
+  categorySlug: string,
+  language?: LanguageCode,
+) {
+  const supabase = await createServerSupabaseClient()
+
+  // Find the category
+  const { data: cat, error: catErr } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('slug', categorySlug)
+    .eq('status', 'published')
+    .single()
+  if (catErr) return { data: [], error: catErr.message }
+
+  // Find courses in that category
+  const { data: courseCats } = await supabase
+    .from('course_categories')
+    .select('course_id')
+    .eq('category_id', cat.id)
+
+  const courseIds = (courseCats ?? []).map((cc: { course_id: string }) => cc.course_id)
+  if (courseIds.length === 0) return { data: [], error: null }
+
+  const { data: courses, error } = await supabase
+    .from('courses')
+    .select(
+      `
+      id, slug, status, difficulty, estimated_duration,
+      default_language, published_at,
+      translations:course_translations(
+        id, language_code, title, short_description, status, learning_outcomes
+      )
+      `,
+    )
+    .in('id', courseIds)
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+
+  if (error) return { data: [], error: error.message }
+
+  const result = (courses ?? []) as CourseWithTranslation[]
+  const filtered = language
+    ? result.map((c) => ({
+        ...c,
+        translations: c.translations.filter(
+          (t) => t.language_code === language && t.status === 'published',
+        ),
+      }))
+    : result
+
+  return { data: filtered.filter((c) => c.translations.length > 0), error: null }
+}
+
 /** Get a single published course by slug, with curriculum (modules + lessons). */
 export async function getPublishedCourseBySlug(
   slug: string,
@@ -162,6 +217,18 @@ export async function getPublishedCourseBySlug(
       })),
     }))
   }
+
+  // Fetch course categories (for breadcrumbs + related)
+  const { data: courseCats } = await supabase
+    .from('course_categories')
+    .select(
+      `category:categories(id, slug, translations:category_translations(language_code, name))`,
+    )
+    .eq('course_id', course.id)
+
+  // Attach categories (typed loosely to avoid TS friction)
+  ;(result as Record<string, unknown>).categories =
+    (courseCats ?? []).map((cc: { category: unknown }) => cc.category)
 
   return { data: result, error: null, code: null }
 }

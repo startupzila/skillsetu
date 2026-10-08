@@ -334,3 +334,65 @@ Stage Summary:
 - Homepage shows real Excel Fundamentals course with new design.
 - Theme toggle works end-to-end (light ↔ dark).
 - Ready for S6 (Public website: homepage polish, category pages, course pages).
+
+---
+Task ID: S6
+Agent: Z.ai Code (main)
+Task: Public website — homepage, categories, course pages
+
+Work Log:
+- Created db/seeds/003_seed_extra_courses.sql: added Digital Skills category + 3 new courses
+  (Word Fundamentals, PowerPoint Fundamentals, Digital Marketing Basics) with EN+HI translations,
+  modules, lessons. Added second module to Excel course (Working with Cells).
+- Applied seed via bun run db:apply (now 4 courses, 2 categories, 5 modules, 5 lessons).
+- Updated src/lib/content/course-service.ts:
+  • Added listPublishedCoursesByCategory(slug, lang) — fetches courses by category slug.
+  • Updated getPublishedCourseBySlug — now also fetches course categories (for breadcrumbs + related).
+- Exported new function from index.ts.
+- Created (public) route group:
+  • layout.tsx — wraps all public pages with Header + Footer (sticky), reads language from cookie.
+  • page.tsx — homepage (moved from src/app/page.tsx, stripped inline Header/Footer).
+    Now includes "Explore by Category" section (category cards) + "Featured Courses" grid +
+    "Why SkillSetu?" methodology section.
+- Removed old src/app/page.tsx (now in (public)/page.tsx).
+- Created /skills page: lists all published categories with icon, name, description, CTA.
+  SEO metadata. EmptyState fallback.
+- Created /skills/[slug] page: category detail with courses.
+  generateMetadata for SEO. Breadcrumbs (Home > Skills > Category).
+  Grid of CourseCards. notFound() if category doesn't exist.
+- Created /courses page: lists all published courses with category filter chips.
+  SEO metadata. CourseCard grid.
+- Created /courses/[slug] page: full course detail.
+  generateMetadata for SEO (title, description, OpenGraph).
+  Breadcrumbs, difficulty/duration/lessons badges, title, descriptions.
+  Course Info sidebar (difficulty, duration, lessons, language).
+  "What you'll learn" (outcomes with checkmarks).
+  Prerequisites, "Who this is for" (audience badges).
+  Course Content (curriculum): modules as numbered cards, lessons as clickable links with duration.
+  Related Courses (3 CourseCards).
+- Ran bun run lint — passed clean, zero errors.
+- Verified all pages return 200:
+  /, /skills, /skills/office-skills, /skills/digital-skills, /courses,
+  /courses/excel-fundamentals, /courses/word-fundamentals, /courses/digital-marketing-basics.
+- Browser verification (agent-browser):
+  • Homepage: "Explore by Category" with Office Skills + Digital Skills; 4 featured courses.
+  • /courses: 4 courses with category filter chips.
+  • /courses/excel-fundamentals: breadcrumbs, badges, course info sidebar, 5 learning outcomes,
+    prerequisites, audience badges, curriculum (2 modules: "1 Getting Started (1 lesson)" + "What is Excel? 10m").
+  • /skills/office-skills: breadcrumbs, 3 course cards (Excel, Word, PowerPoint).
+  • Mobile (375px): courses page renders correctly.
+  • No console errors.
+- Created docs/session/S6.md.
+- Updated docs/plan.md status (S6 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Full public website: homepage (hero + categories + featured courses + methodology),
+  category listing (/skills), category detail (/skills/[slug]), course listing (/courses),
+  course detail (/courses/[slug]) with full curriculum.
+- 4 courses with EN+HI translations, 2 categories, 5 modules, 5 lessons.
+- All pages server-rendered with SEO metadata (generateMetadata).
+- Breadcrumbs on category + course pages.
+- Category filter chips on /courses.
+- Related courses on course detail.
+- Ready for S7 (lesson renderer + search).

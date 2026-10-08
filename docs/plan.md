@@ -33,7 +33,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Authentication & RBAC | ✅ S4 |
 | Database migrations applied to Supabase (automated) | ✅ DB-SETUP |
 | Design system & global layout | ✅ S5 |
-| Development continued | ⏳ Awaiting user confirmation for S6 |
+| Public website — homepage, categories, course pages | ✅ S6 |
+| Development continued | ⏳ Awaiting user confirmation for S7 |
 
 ---
 
