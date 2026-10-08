@@ -303,3 +303,107 @@ export async function adminUpdateLessonTranslation(
   if (error) return { data: null, error: error.message }
   return { data, error: null }
 }
+
+// ── LESSON BLOCKS ───────────────────────────────────────────
+
+/** List blocks for a lesson translation (ordered by sort_order). */
+export async function adminListBlocks(lessonTranslationId: string) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('lesson_blocks')
+    .select('id, block_type, sort_order, data, created_at, updated_at')
+    .eq('lesson_translation_id', lessonTranslationId)
+    .order('sort_order', { ascending: true })
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Create a block. */
+export async function adminCreateBlock(input: {
+  lesson_translation_id: string
+  block_type: string
+  data: Record<string, unknown>
+  sort_order?: number
+}) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('lesson_blocks')
+    .insert({
+      lesson_translation_id: input.lesson_translation_id,
+      block_type: input.block_type,
+      data: input.data,
+      sort_order: input.sort_order ?? 0,
+    })
+    .select()
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Update a block (type + data). */
+export async function adminUpdateBlock(
+  blockId: string,
+  updates: { block_type?: string; data?: Record<string, unknown>; sort_order?: number },
+) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('lesson_blocks')
+    .update(updates)
+    .eq('id', blockId)
+    .select()
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Delete a block. */
+export async function adminDeleteBlock(blockId: string) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { error } = await admin.from('lesson_blocks').delete().eq('id', blockId)
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
+/** Reorder blocks (accepts array of {id, sort_order}). */
+export async function adminReorderBlocks(
+  items: Array<{ id: string; sort_order: number }>,
+) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  for (const item of items) {
+    const { error } = await admin
+      .from('lesson_blocks')
+      .update({ sort_order: item.sort_order })
+      .eq('id', item.id)
+    if (error) return { error: error.message }
+  }
+  return { error: null }
+}
+
+/** Get lesson translation ID by lesson ID + language. */
+export async function adminGetLessonTranslation(lessonId: string, language = 'en') {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('lesson_translations')
+    .select('id, title, summary, status')
+    .eq('lesson_id', lessonId)
+    .eq('language_code', language)
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}

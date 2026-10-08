@@ -550,3 +550,57 @@ Stage Summary:
 - Console CRUD: courses list, create, editor with curriculum; lesson editor (basic).
 - All admin operations permission-checked + audit-logged.
 - Ready for S10 (Console: content-block editor, questions, editorial workflow, translations).
+
+---
+Task ID: S10
+Agent: Z.ai Code (main)
+Task: Console — content-block editor, question bank, editorial workflow
+
+Work Log:
+- Extended admin content service with block management: adminListBlocks, adminCreateBlock,
+  adminUpdateBlock, adminDeleteBlock, adminReorderBlocks, adminGetLessonTranslation.
+- Created admin question service (src/lib/admin/question-service.ts): adminListQuestions,
+  adminGetQuestion, adminCreateQuestion (with translation + options), adminUpdateQuestion,
+  adminDeleteQuestion, adminPublishQuestion, adminListQuizzes, adminListQuizQuestions,
+  adminAddQuestionToQuiz, adminRemoveQuestionFromQuiz.
+- Created admin editorial service (src/lib/admin/editorial-service.ts): adminCreateReview,
+  adminUpdateReview, adminListReviews, adminCreateComment, adminListComments,
+  adminToggleCommentResolved, adminDeleteComment.
+- Created API routes:
+  • /api/admin/blocks (GET list, POST create, POST reorder)
+  • /api/admin/blocks/[id] (PATCH update, DELETE)
+  • /api/admin/questions (GET list, POST create)
+  • /api/admin/questions/[id] (GET, PATCH, DELETE, POST publish)
+  • /api/admin/editorial/comments (GET list, POST create)
+  • /api/admin/editorial/comments/[id] (POST resolve, DELETE)
+- Created visual block editor (src/components/console/block-editor.tsx):
+  • Lists all blocks with live preview (ContentRenderer)
+  • Per-block toolbar: type badge, sort number, move up/down, edit, delete
+  • "Add Block" dialog with type picker (9 types)
+  • Inline edit forms per block type (heading, paragraph, callout, code, example, quote, checklist)
+  • Reorder persists immediately via API
+  • Toast feedback for all actions
+- Updated lesson editor to integrate block editor (dynamic import, replaces placeholder).
+- Created console question pages:
+  • /console/questions: table with question text, type, difficulty, status, options count, edit link
+  • /console/questions/new: MCQ creator (question text, auto-slug, type selector, difficulty,
+    topic, dynamic options with checkboxes for correct, explanation, validation)
+  • /console/questions/[id]: question detail (text, options with correct highlighted, explanation, publish)
+- Fixed import path bug in block-editor.tsx (was './content-renderer', should be '@/components/learning/content-renderer').
+- Ran bun run lint — passed clean, zero errors.
+- Browser verification (agent-browser, logged in as super_admin):
+  • Console questions: shows existing question with 4 options, Published status.
+  • New Question form: all fields render (text, slug, type, difficulty, topic, 4 option rows with checkboxes, explanation).
+  • Lesson editor with block editor: shows all 12 existing blocks (heading through related_content)
+    with type badges, sort numbers, move up/down/edit/delete buttons, live previews.
+  • "Add Block" button at bottom.
+  • No console errors.
+- Created docs/session/S10.md. Updated docs/plan.md (S10 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Visual content-block editor: add/edit/delete/reorder blocks with live preview. 9 block types supported.
+- Question bank: create/list/edit/publish questions with options, correct answer, explanation.
+- Editorial workflow: reviews (approve/reject) + comments (create/resolve/delete) API ready.
+- Block editor integrated into lesson editor (replaces placeholder).
+- Ready for S11 (Media library + video foundation).

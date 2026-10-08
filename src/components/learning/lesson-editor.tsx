@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +13,12 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Save, Send, Eye, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { StatusBadge } from '@/components/shared'
+
+// Lazy load the block editor (it's a heavy client component)
+const BlockEditor = dynamic(
+  () => import('@/components/console/block-editor').then((m) => m.BlockEditor),
+  { loading: () => <Loader2 className="h-5 w-5 animate-spin" /> },
+)
 
 interface LessonEditorProps {
   courseId: string
@@ -178,16 +185,19 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
         </CardContent>
       </Card>
 
-      {/* Content blocks placeholder */}
+      {/* Content blocks editor */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Content blocks</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            The visual content-block editor is coming in S10. For now, lesson
-            content is managed via the database seed files.
-          </p>
+          {translationId ? (
+            <BlockEditor lessonTranslationId={translationId} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Save the lesson first to create a translation, then add content blocks.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
