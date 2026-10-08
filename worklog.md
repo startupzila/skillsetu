@@ -180,3 +180,62 @@ Stage Summary:
 - User must apply db/migrations/004_tables_s3.sql + 005 + 006 + seeds/002_seed_s3.sql in Supabase Dashboard
   (after S2 files) to see sample question/quiz/book.
 - Ready for S4 (Authentication & RBAC).
+
+---
+Task ID: S4
+Agent: Z.ai Code (main)
+Task: Authentication & RBAC — learner auth, console protection, server authorization helpers, audit logging
+
+Work Log:
+- Created src/lib/auth/permissions.ts: PERMISSIONS constants (19 permissions) + ROLES constants (11 roles) + ALL_PERMISSIONS.
+- Created src/lib/auth/session.ts: getSession() fetches user + profile + roles + permissions from DB via Supabase;
+  requireUser(), requireRole(...), requirePermission(p), hasPermission(), hasRole(), isStaff(), AuthError class.
+  super_admin implicitly has '*' permission. Client-provided user_id never trusted.
+- Created src/lib/auth/audit.ts: recordAudit() writes immutable audit_logs entries via service-role admin client.
+  Fails silently if table doesn't exist yet (schema pending).
+- Created src/lib/auth/index.ts: barrel export.
+- Created src/middleware.ts: refreshes Supabase session on every request; protects /console/* (redirects to /login?redirect=...);
+  redirects logged-in users away from /login and /register to /dashboard.
+- Created 6 auth API routes:
+  • /api/auth/register: signUp with email verification (validates password >= 8 chars)
+  • /api/auth/login: signInWithPassword
+  • /api/auth/logout: signOut
+  • /api/auth/forgot-password: resetPasswordForEmail (always returns success to prevent email enumeration)
+  • /api/auth/reset-password: updateUser password (called after clicking reset link)
+  • /api/auth/callback: exchangeCodeForSession for email verification redirects
+- Created auth UI pages (src/app/(auth)/):
+  • layout.tsx: shared card-based layout with SkillSetu branding
+  • login/page.tsx: email + password form, loading + error states, redirect param support
+  • register/page.tsx: display name + email + password, success screen after registration
+  • forgot-password/page.tsx: email form, success state (anti-enumeration)
+  • reset-password/page.tsx: new password + confirm, validation
+  • verify-email/page.tsx: notice page for email verification
+- Created src/app/console/layout.tsx: protected layout requiring auth + isStaff();
+  shows 'no access' for authenticated non-staff (not redirect loop); sidebar nav + header with user info + sign out.
+- Created src/app/console/page.tsx: dashboard showing user account, roles, permissions, module access cards
+  (permits based on hasPermission check).
+- Created src/app/unauthorized/page.tsx: 403 page.
+- Updated homepage to show auth-aware header (Sign in/up vs Dashboard/Console/Sign out).
+- Created docs/security.md: auth model, RBAC layers, RLS, audit logging, MFA readiness, secret management, security checklist.
+- Updated docs/plan.md: S4 marked complete.
+- Ran bun run lint — passed clean, zero errors.
+- Verified endpoints:
+  • GET / → 200 (auth-aware header)
+  • GET /login, /register, /forgot-password, /reset-password → 200
+  • GET /console (no auth) → 307 redirect to /login?redirect=/console
+  • POST /api/auth/register (valid) → 200 with user created in Supabase, verification email sent
+  • POST /api/auth/register (invalid) → 400 "Email and password are required"
+  • POST /api/auth/login (invalid creds) → 401 "Invalid login credentials"
+  • POST /api/auth/forgot-password → 200 (anti-enumeration)
+- Browser verification (agent-browser): login page renders all form elements; /console redirect to /login confirmed;
+  register page renders cleanly; no console errors.
+- Committed and pushed to GitHub (commit e8ebede).
+
+Stage Summary:
+- Full authentication pipeline: register → email verify → login → logout → password reset.
+- Three-layer authorization: server helpers + Supabase RLS + middleware.
+- /console protected; non-staff authenticated users see 'no access' page.
+- Audit logging helper ready for use by admin actions.
+- MFA readiness documented (not enforced in MVP).
+- Homepage shows auth-aware navigation.
+- Ready for S5 (Design System & Global Layout).
