@@ -786,3 +786,50 @@ Stage Summary:
 - Coupon validation (code, expiry, usage limit, min order, max discount).
 - Console: products, orders, coupons management.
 - Ready for S15 (Affiliate, ads, learner dashboard, analytics).
+
+---
+Task ID: S15
+Agent: Z.ai Code (main)
+Task: Affiliate, ads, learner dashboard, analytics
+
+Work Log:
+- Created marketing service (src/lib/admin/marketing-service.ts): affiliate links CRUD +
+  toggle + public list; ad slots CRUD + toggle + public list. All permission-checked (seo.manage).
+- Created analytics service (src/lib/analytics/analytics-service.ts): trackEvent (writes to
+  audit_logs), getAdminMetrics (14 aggregate metrics), getRecentEvents.
+- Created API routes:
+  • GET/POST /api/admin/affiliates, POST/DELETE /api/admin/affiliates/[id]
+  • GET/POST /api/admin/ads, POST/DELETE /api/admin/ads/[id]
+  • POST /api/analytics/track (event tracking)
+  • GET /api/admin/analytics (metrics + recent events)
+- Created learner dashboard /dashboard:
+  • Quick stats (courses, quiz attempts, bookmarks, notes).
+  • Continue Learning (enrolled courses with progress bars).
+  • Saved Lessons (bookmarked lessons with links).
+  • Recent Notes.
+  • Recent Orders.
+  • Purchased Resources (entitlements with download buttons).
+  • Requires auth (redirects to /login).
+- Created console pages:
+  • /console/affiliates — affiliate manager (create form, list with toggle/delete).
+  • /console/ads — ad slot manager (create form with slot selector, list with toggle/delete).
+  • /console/analytics — analytics dashboard (12 metric cards + recent activity feed).
+- Created client components: AffiliatesManager, AdsManager.
+- Updated console sidebar: added Marketing section (Affiliates, Ads) + Analytics under System.
+- Seeded 1 affiliate link (Amazon — Excel 2024 Complete Guide, active) + 1 ad slot (sidebar, inactive).
+- Ran bun run lint — passed clean, zero errors.
+- Browser verification (logged in as super_admin):
+  • Dashboard: "Welcome back, skillsetu.test.s4" + stats (4 quiz attempts, 1 bookmark).
+  • Console analytics: 12 metric cards + recent activity (media.upload, course.create events).
+  • Console affiliates: shows "Excel 2024 Complete Guide" (Amazon, Active).
+  • Analytics API returns: learners:1, courses:4, lessons:5, bookmarks:1, mediaAssets:1.
+  • No console errors.
+- Created docs/session/S15.md. Updated docs/plan.md (S15 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Affiliate manager + ad slot manager (console CRUD + public read).
+- Learner dashboard (continue learning, saved, notes, orders, downloads).
+- Analytics: event tracking + admin dashboard (14 metrics + recent events).
+- Console sidebar fully populated (Content, Commerce, Marketing, SEO, System).
+- Ready for S16 (Content quality, testing, security review).

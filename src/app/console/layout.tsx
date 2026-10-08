@@ -154,6 +154,21 @@ export default async function ConsoleLayout({
               Coupons
             </Link>
             <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
+              Marketing
+            </div>
+            <Link
+              href="/console/affiliates"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Affiliates
+            </Link>
+            <Link
+              href="/console/ads"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Ads
+            </Link>
+            <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
               SEO
             </div>
             <Link
@@ -171,6 +186,12 @@ export default async function ConsoleLayout({
             <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
               System
             </div>
+            <Link
+              href="/console/analytics"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Analytics
+            </Link>
             <Link
               href="/console/users"
               className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
