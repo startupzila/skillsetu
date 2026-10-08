@@ -133,6 +133,27 @@ export default async function ConsoleLayout({
               Pages
             </Link>
             <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
+              Commerce
+            </div>
+            <Link
+              href="/console/products"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Products
+            </Link>
+            <Link
+              href="/console/orders"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Orders
+            </Link>
+            <Link
+              href="/console/coupons"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Coupons
+            </Link>
+            <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
               SEO
             </div>
             <Link

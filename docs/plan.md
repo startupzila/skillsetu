@@ -41,7 +41,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Media library & video foundation | ✅ S11 |
 | SEO system — sitemap, robots, JSON-LD, redirects | ✅ S12 |
 | Static pages & custom code manager | ✅ S13 |
-| Development continued | ⏳ Awaiting user confirmation for S14 |
+| Books, store & commerce foundation | ✅ S14 |
+| Development continued | ⏳ Awaiting user confirmation for S15 |
 
 ---
 

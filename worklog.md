@@ -736,3 +736,53 @@ Stage Summary:
 - Custom code injected server-side into layout (body_start + body_end).
 - All admin operations permission-checked + audit-logged.
 - Ready for S14 (Books, store & commerce foundation).
+
+---
+Task ID: S14
+Agent: Z.ai Code (main)
+Task: Books, store & commerce foundation
+
+Work Log:
+- Created commerce service (src/lib/commerce/commerce-service.ts):
+  • Public: listPublishedProducts, getPublishedProductBySlug, validateCoupon, checkEntitlement,
+    listMyEntitlements, generateDownloadUrl (signed URL, 1hr expiry, download count tracked).
+  • User: createOrder (with optional coupon), listMyOrders.
+  • Admin: adminListProducts, adminCreateProduct, adminPublishProduct, adminListOrders,
+    adminMarkOrderPaid (creates payment + entitlements), adminListCoupons, adminCreateCoupon,
+    adminToggleCoupon. All permission-checked + audit-logged.
+- Created API routes:
+  • POST /api/commerce/orders (create order)
+  • POST /api/commerce/coupons/validate (validate coupon)
+  • POST /api/commerce/download (generate signed download URL)
+  • GET/POST /api/admin/products (list + create)
+  • POST /api/admin/products/[id] (publish)
+  • GET /api/admin/orders (list)
+  • POST /api/admin/orders/[id] (mark paid → creates payment + entitlements)
+  • GET/POST /api/admin/coupons (list + create)
+  • POST /api/admin/coupons/[id] (toggle active)
+- Created public pages:
+  • /store — product grid with type badges, format badges, prices.
+  • /store/[slug] — product detail with format list, price, Buy now / Download button.
+  • /books — book-specific listing (product_type='book').
+- Created console pages:
+  • /console/products — table with name, type, price, status, publish action.
+  • /console/orders — table with order ID, customer, total, status, mark paid.
+  • /console/coupons — coupon manager (create form, list with toggle).
+- Created CouponsManager client component (create form, list, toggle).
+- Added "Commerce" section to console sidebar (Products, Orders, Coupons).
+- Ran bun run lint — passed clean, zero errors.
+- Browser verification:
+  • /store → 200: shows Excel Practice Workbook (Book badge, PDF, ₹199.00).
+  • /store/excel-practice-workbook → 200: product detail with format list, price, Buy now button.
+  • No console errors.
+- Created docs/session/S14.md. Updated docs/plan.md (S14 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Commerce foundation: products, orders, coupons, entitlements, protected downloads.
+- Payment abstracted (manual for MVP; Razorpay/Stripe ready).
+- Entitlements created on payment confirmation (admin marks paid).
+- Downloads use signed URLs (1hr expiry, count tracked).
+- Coupon validation (code, expiry, usage limit, min order, max discount).
+- Console: products, orders, coupons management.
+- Ready for S15 (Affiliate, ads, learner dashboard, analytics).
