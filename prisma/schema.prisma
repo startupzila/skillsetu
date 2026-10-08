@@ -1163,3 +1163,39 @@ model SystemSetting {
 
   @@map("system_settings")
 }
+
+// ═══════════════════════════════════════════════════════════
+// STATIC PAGES (Phase 10.1 — CMS-managed legal/info pages)
+// ═══════════════════════════════════════════════════════════
+
+model StaticPage {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug         String        @unique
+  status       ContentStatus @default(draft)
+  sortOrder    Int           @default(0) @map("sort_order")
+  showInFooter Boolean       @default(true) @map("show_in_footer")
+  publishedAt  DateTime?     @map("published_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @default(now()) @map("updated_at")
+
+  translations StaticPageTranslation[]
+
+  @@map("static_pages")
+}
+
+model StaticPageTranslation {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId          String            @map("page_id") @db.Uuid
+  languageCode    String            @map("language_code")
+  title           String
+  content         String // Markdown or HTML
+  metaDescription String?           @map("meta_description")
+  status          TranslationStatus @default(draft)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @default(now()) @map("updated_at")
+
+  page StaticPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, languageCode])
+  @@map("static_page_translations")
+}

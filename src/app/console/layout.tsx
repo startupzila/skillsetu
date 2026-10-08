@@ -126,6 +126,12 @@ export default async function ConsoleLayout({
             >
               Media
             </Link>
+            <Link
+              href="/console/pages"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Pages
+            </Link>
             <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
               SEO
             </div>
@@ -134,6 +140,12 @@ export default async function ConsoleLayout({
               className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
             >
               Redirects
+            </Link>
+            <Link
+              href="/console/custom-code"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Custom Code
             </Link>
             <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
               System

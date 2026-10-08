@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { Header } from '@/components/public/header'
-import { Footer } from '@/components/public/footer'
+import Footer from '@/components/public/footer'
 import { getSession } from '@/lib/auth'
 
 /**

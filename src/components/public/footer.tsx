@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { listFooterPages } from '@/lib/content/pages-service'
 
 interface FooterProps {
   lang?: 'en' | 'hi'
@@ -7,12 +8,20 @@ interface FooterProps {
 /**
  * Footer — public site footer (sticky to bottom).
  *
- * Placed at the end of the page inside a min-h-screen flex-col layout
- * so it sticks to the bottom when content is short, and pushes down
- * naturally when content is long.
+ * Fetches CMS-managed pages (about, privacy, terms, etc.) from the
+ * `static_pages` table for the "Company" and "Legal" sections.
  */
-export function Footer({ lang = 'en' }: FooterProps) {
+export default async function Footer({ lang = 'en' }: FooterProps) {
   const year = new Date().getFullYear()
+  const footerPages = await listFooterPages(lang)
+
+  // Split pages into company/legal based on slug
+  const companyPages = footerPages.filter((p) =>
+    ['about', 'contact'].includes(p.slug),
+  )
+  const legalPages = footerPages.filter((p) =>
+    !['about', 'contact'].includes(p.slug),
+  )
 
   const sections = [
     {
@@ -25,17 +34,11 @@ export function Footer({ lang = 'en' }: FooterProps) {
     },
     {
       title: lang === 'hi' ? 'कंपनी' : 'Company',
-      links: [
-        { href: '/about', label: lang === 'hi' ? 'हमारे बारे में' : 'About' },
-        { href: '/contact', label: lang === 'hi' ? 'संपर्क' : 'Contact' },
-      ],
+      links: companyPages.map((p) => ({ href: `/${p.slug}`, label: p.title })),
     },
     {
       title: lang === 'hi' ? 'कानूनी' : 'Legal',
-      links: [
-        { href: '/privacy', label: lang === 'hi' ? 'गोपनीयता' : 'Privacy' },
-        { href: '/terms', label: lang === 'hi' ? 'शर्तें' : 'Terms' },
-      ],
+      links: legalPages.map((p) => ({ href: `/${p.slug}`, label: p.title })),
     },
   ]
 

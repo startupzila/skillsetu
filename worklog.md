@@ -689,3 +689,50 @@ Stage Summary:
 - Redirect manager: 301/302 redirects in middleware, console UI for CRUD.
 - Per-entity SEO metadata service ready (seo_metadata table).
 - Ready for S13 (Static pages + custom code manager).
+
+---
+Task ID: S13
+Agent: Z.ai Code (main)
+Task: Static pages & custom code manager
+
+Work Log:
+- Added StaticPage + StaticPageTranslation models to prisma/schema.prisma (slug, status, sort_order,
+  show_in_footer, published_at; per-language title, content, meta_description).
+- Created static_pages + static_page_translations tables in Supabase (via direct SQL via pooler),
+  with RLS (public read published) + updated_at triggers.
+- Created static pages service (src/lib/content/pages-service.ts): getPublishedPageBySlug,
+  listFooterPages, adminListPages, adminGetPage, adminCreatePage, adminUpdatePageTranslation,
+  adminPublishPage. Also custom code service: getActiveCustomCode, adminListCustomCode,
+  adminCreateCustomCode, adminUpdateCustomCode, adminDeleteCustomCode.
+- Created public static page route (public)/[slug]/page.tsx: catch-all for CMS pages
+  (about, privacy, terms, etc.). generateMetadata for SEO. Breadcrumbs. notFound() for unknown slugs.
+- Updated footer to be dynamic: fetches published pages from listFooterPages(), splits into
+  Company (about, contact) and Legal (privacy, terms, refund, affiliate-disclosure).
+- Created custom code injector (src/components/seo/custom-code-injector.tsx): server component
+  fetches active code for a location, renders via dangerouslySetInnerHTML.
+- Updated layout.tsx to inject CustomCodeInjector at body_start and body_end.
+- Created API routes: /api/admin/pages (list, create, get, update, publish),
+  /api/admin/custom-code (list, create, update, delete).
+- Created console pages: /console/pages (table with 6 seeded pages), /console/pages/new (create form),
+  /console/pages/[id] (editor with save + publish).
+- Created /console/custom-code page with CustomCodeManager component (create form with name/location/
+  code, list with toggle + delete, code preview).
+- Added Pages + Custom Code links to console sidebar.
+- Seeded 6 static pages (about, privacy, terms, contact, refund, affiliate-disclosure — all published
+  with EN translations) + 2 custom code entries (Google Analytics + Schema Verification, both inactive).
+- Fixed Footer import (default export now, not named).
+- Fixed JSX parsing error in console/pages/page.tsx (template literal with ?action).
+- Ran bun run lint — passed clean, zero errors.
+- Verified: /about → 200 (renders title + content), /privacy → 200, /terms → 200,
+  /nonexistent → 404. Footer shows CMS-managed links. Console pages list shows 6 published pages.
+  Console custom code shows Google Analytics entry (head, Inactive). No console errors.
+- Created docs/session/S13.md. Updated docs/plan.md (S13 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- CMS-managed static pages: 6 seeded pages (about, privacy, terms, contact, refund, affiliate-disclosure).
+- Dynamic footer: fetches CMS pages, splits into Company/Legal.
+- Custom code manager: create/activate/deactivate/delete code entries (head/body_start/body_end).
+- Custom code injected server-side into layout (body_start + body_end).
+- All admin operations permission-checked + audit-logged.
+- Ready for S14 (Books, store & commerce foundation).

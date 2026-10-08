@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { CustomCodeInjector } from "@/components/seo/custom-code-injector";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -63,7 +64,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <CustomCodeInjector location="body_start" />
           {children}
+          <CustomCodeInjector location="body_end" />
           <Toaster />
         </ThemeProvider>
       </body>
