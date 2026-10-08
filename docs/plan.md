@@ -38,7 +38,8 @@ granular micro-sessions into realistic, executable development sessions for an A
 | Learning system — progress, bookmarks, notes, quizzes | ✅ S8 |
 | Console — w3schools lesson layout + course/module/lesson CRUD | ✅ S9 |
 | Console — block editor, questions, editorial workflow | ✅ S10 |
-| Development continued | ⏳ Awaiting user confirmation for S11 |
+| Media library & video foundation | ✅ S11 |
+| Development continued | ⏳ Awaiting user confirmation for S12 |
 
 ---
 

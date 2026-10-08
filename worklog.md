@@ -604,3 +604,47 @@ Stage Summary:
 - Editorial workflow: reviews (approve/reject) + comments (create/resolve/delete) API ready.
 - Block editor integrated into lesson editor (replaces placeholder).
 - Ready for S11 (Media library + video foundation).
+
+---
+Task ID: S11
+Agent: Z.ai Code (main)
+Task: Media library & video foundation
+
+Work Log:
+- Created Supabase Storage buckets via API: media (public, for images) + downloads (private, for paid resources).
+- Created admin media service (src/lib/admin/media-service.ts): adminListMedia, adminGetMedia,
+  adminCreateMedia, adminUpdateMedia, adminDeleteMedia (cleans up Storage + DB), adminUploadMedia
+  (upload to Storage + create DB record), getMediaUrl.
+- Created API routes:
+  • GET /api/admin/media (list, filterable by type)
+  • POST /api/admin/media/upload (multipart upload, validates type + size, max 10MB)
+  • PATCH /api/admin/media/[id] (update alt_text, caption, source, license)
+  • DELETE /api/admin/media/[id] (delete DB record + Storage file)
+- Created /console/media page: server component fetches media, client MediaLibrary component with:
+  • Upload button (file picker, multiple files)
+  • Grid of media cards (image preview or file icon, filename, type badge, file size, edit/delete)
+  • Edit dialog (alt text, caption, live preview)
+  • Delete with confirmation
+  • Empty state
+- Updated VideoBlock in ContentRenderer to support real video metadata:
+  • Provider-aware embeds (YouTube, Vimeo)
+  • Thumbnail fallback
+  • Duration display
+  • Placeholder when no provider/videoId set
+- Added "Media" link to console sidebar.
+- Ran bun run lint — passed clean, zero errors.
+- Tested upload via API: uploaded test-image.png → 200, media_asset record created with storage_path.
+- Browser verification (agent-browser, logged in as super_admin):
+  • /console/media renders with "Media Library" title, upload button, empty state.
+  • After upload, media grid shows test-image.png with image preview, "image" type, "70 B" size, Edit/Delete.
+  • "Media" link visible in console sidebar.
+  • No console errors.
+- Created docs/session/S11.md. Updated docs/plan.md (S11 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Media library: upload to Supabase Storage, browse grid, edit metadata (alt text, caption), delete.
+- Video block supports YouTube/Vimeo embeds (provider + videoId).
+- Storage buckets: media (public) + downloads (private).
+- File upload validation (type + size, max 10MB).
+- Ready for S12 (SEO system).

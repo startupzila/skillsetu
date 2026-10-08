@@ -275,10 +275,54 @@ export function QuizBlock({ data }: { data: BlockData }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// VIDEO (feature-flagged placeholder — full video in S11)
+// VIDEO (S11 — supports provider + external ID; streaming not built)
 // ═══════════════════════════════════════════════════════════
 export function VideoBlock({ data }: { data: BlockData }) {
   const title = asString(data.title) || 'Video Lesson'
+  const provider = asString(data.provider) // youtube | vimeo | self-hosted
+  const videoId = asString(data.video_id || data.videoId)
+  const thumbnailUrl = asString(data.thumbnail_url || data.thumbnail)
+  const duration = asString(data.duration)
+
+  // If provider + videoId present, render an embed placeholder
+  if (provider && videoId) {
+    const embedUrl =
+      provider === 'youtube'
+        ? `https://www.youtube.com/embed/${videoId}`
+        : provider === 'vimeo'
+          ? `https://player.vimeo.com/video/${videoId}`
+          : null
+
+    return (
+      <div className="space-y-2">
+        <div className="relative aspect-video rounded-lg overflow-hidden border bg-black">
+          {embedUrl ? (
+            <iframe
+              src={embedUrl}
+              title={title}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : thumbnailUrl ? (
+            <img src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <PlayCircle className="h-12 w-12 text-white/50" />
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">{title}</span>
+          {duration && (
+            <span className="text-muted-foreground">{duration}</span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Fallback: placeholder (no provider/ID set)
   return (
     <div className="rounded-lg border border-dashed border-muted-foreground/30 p-8 text-center space-y-2">
       <div className="inline-flex rounded-full bg-muted p-3">
@@ -286,7 +330,7 @@ export function VideoBlock({ data }: { data: BlockData }) {
       </div>
       <p className="font-medium">{title}</p>
       <p className="text-sm text-muted-foreground">
-        Video lessons coming soon.
+        Video metadata set, but no provider/video ID configured.
       </p>
     </div>
   )

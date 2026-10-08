@@ -120,6 +120,12 @@ export default async function ConsoleLayout({
             >
               Questions
             </Link>
+            <Link
+              href="/console/media"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Media
+            </Link>
             <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
               System
             </div>
