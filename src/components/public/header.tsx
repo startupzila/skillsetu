@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, X } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
 import { SearchBox } from './search-box'
@@ -99,15 +99,10 @@ export function Header({ session, lang = 'en' }: HeaderProps) {
               </SheetTrigger>
               <SheetContent side="right" className="w-80">
                 <div className="flex flex-col gap-4 pt-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pr-8">
                     <span className="font-bold text-lg">
                       Skill<span className="text-primary">Setu</span>
                     </span>
-                    <SheetClose asChild>
-                      <Button variant="ghost" size="icon" aria-label="Close menu">
-                        <X className="h-5 w-5" />
-                      </Button>
-                    </SheetClose>
                   </div>
 
                   {/* Mobile search */}

@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { CourseCard } from '@/components/shared'
 import { JsonLdWebsite } from '@/components/seo/json-ld'
 import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
-import { BookOpen, GraduationCap, Languages, Sparkles, ArrowRight } from 'lucide-react'
+import { BookOpen, GraduationCap, Languages, ArrowRight } from 'lucide-react'
 
 /**
  * SkillSetu — homepage.
@@ -23,11 +22,7 @@ export default async function Home() {
       <JsonLdWebsite />
       {/* Hero */}
       <section className="border-b bg-gradient-to-b from-brand-muted/40 to-background">
-        <div className="container mx-auto px-4 py-20 text-center space-y-6">
-          <Badge variant="secondary" className="text-xs gap-1">
-            <Sparkles className="h-3 w-3" />
-            Learn in English & Hindi
-          </Badge>
+        <div className="container mx-auto px-4 py-16 text-center space-y-5">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight max-w-3xl mx-auto">
             Learn practical skills
             <br />
@@ -36,6 +31,9 @@ export default async function Home() {
           <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto">
             Structured tutorials, examples, practice, quizzes and resources —
             for Excel, Tally, Digital Marketing, AI tools and more.
+          </p>
+          <p className="text-xs text-muted-foreground/70 uppercase tracking-wider">
+            Learn in Your Language
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Button asChild size="lg">
@@ -51,7 +49,7 @@ export default async function Home() {
               </Link>
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground pt-4">
+          <p className="text-sm text-muted-foreground pt-3">
             Discover → Learn → Practice → Test → Apply → Track Progress
           </p>
         </div>

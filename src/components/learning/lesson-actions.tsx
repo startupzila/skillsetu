@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Bookmark, NotebookPen, CheckCircle2, Loader2, X } from 'lucide-react'
+import { NotebookPen, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { BookmarkButton } from './bookmark-button'
 import { NoteEditor } from './note-editor'
@@ -75,16 +75,11 @@ export function LessonActions({
           </Button>
         </SheetTrigger>
         <SheetContent side="right" className="w-[400px] sm:w-[540px]">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 pr-8">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <NotebookPen className="h-5 w-5" />
               My Notes
             </h2>
-            <SheetClose asChild>
-              <Button variant="ghost" size="icon">
-                <X className="h-4 w-4" />
-              </Button>
-            </SheetClose>
           </div>
           <NoteEditor lessonId={lessonId} />
         </SheetContent>

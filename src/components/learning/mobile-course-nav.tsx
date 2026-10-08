@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { CourseSidebar, type SidebarModule } from './course-sidebar'
 
 interface MobileCourseNavProps {
@@ -38,13 +38,8 @@ export function MobileCourseNav({
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2.5 border-b">
+        <div className="px-3 py-2.5 border-b pr-8">
           <span className="font-semibold text-sm">Course Contents</span>
-          <SheetClose asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <X className="h-4 w-4" />
-            </Button>
-          </SheetClose>
         </div>
         <CourseSidebar
           courseSlug={courseSlug}
