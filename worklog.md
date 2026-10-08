@@ -833,3 +833,42 @@ Stage Summary:
 - Analytics: event tracking + admin dashboard (14 metrics + recent events).
 - Console sidebar fully populated (Content, Commerce, Marketing, SEO, System).
 - Ready for S16 (Content quality, testing, security review).
+
+---
+Task ID: S16
+Agent: Z.ai Code (main)
+Task: Content quality, testing, security review
+
+Work Log:
+- Installed Vitest + @vitest/coverage-v8. Created vitest.config.ts with @ path alias.
+  Added "test" and "test:watch" scripts to package.json.
+- Created 3 test files with 74 unit tests (all passing):
+  • tests/unit/utils.test.ts (28 tests): slugify, formatPrice, calculateProgress,
+    computeDiscount, isValidBlockType, canTransition.
+  • tests/unit/auth.test.ts (23 tests): PERMISSIONS, ROLES, ALL_PERMISSIONS, isStaff,
+    hasPermission, validateCouponLogic.
+  • tests/unit/security.test.ts (23 tests): sanitizeHtml, validateFileUpload,
+    validatePassword, validateRedirectStatus, checkRate.
+- Created course templates (src/lib/templates/course-templates.ts): 4 configurable templates
+  (Office Skills Fundamentals, Digital Marketing Basics, Software Tutorial General, Business Skills General).
+  Each with modules, lessons, block outlines, outcomes, prerequisites, audience.
+- Created /console/templates page: template grid with stats, module previews, "Use this template" button.
+- Created /console/qa page: 10-point quality standards checklist + per-course QA status with
+  pass/fail badges, review scheduling (last_reviewed, next_review, overdue), score per course.
+- Updated console sidebar: added Templates + QA Checklist links.
+- Security review: verified RLS on all tables, is_correct stripping, self-only learner data,
+  service-role-only editorial tables, no secrets in bundles, file upload validation, signed downloads,
+  password validation, redirect status validation, rate limiting logic, HTML sanitization.
+- Ran bun run lint — passed clean, zero errors.
+- Ran bun run test — 74/74 tests pass (3 test files, 445ms).
+- Browser verification: /console/templates shows 4 templates with module outlines;
+  /console/qa shows quality standards + per-course QA status. No console errors.
+- Created docs/session/S16.md. Updated docs/plan.md (S16 complete).
+- Committed and pushed to GitHub.
+
+Stage Summary:
+- Testing: Vitest configured, 74 unit tests (utils, auth, security) all pass.
+- Course templates: 4 configurable templates (not hard-coded).
+- Content QA: 10-point checklist + per-course status with pass/fail + review scheduling.
+- Security: verified RLS, auth, secrets, file upload, downloads, sanitization.
+- Ready for S17 (Production prep & launch readiness — final session).

@@ -14,7 +14,9 @@
     "db:apply": "bun run scripts/apply-migrations.ts",
     "db:check": "bun run scripts/apply-migrations.ts --check",
     "db:reset:hard": "bun run scripts/reset-db.ts",
-    "db:generate-sql": "bun run scripts/generate-sql.ts"
+    "db:generate-sql": "bun run scripts/generate-sql.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -92,11 +94,13 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^5.0.3",
     "bun-types": "^1.3.4",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.3"
   }
 }

@@ -127,6 +127,18 @@ export default async function ConsoleLayout({
               Media
             </Link>
             <Link
+              href="/console/templates"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Templates
+            </Link>
+            <Link
+              href="/console/qa"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              QA Checklist
+            </Link>
+            <Link
               href="/console/pages"
               className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
             >
