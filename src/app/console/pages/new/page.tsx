@@ -66,7 +66,7 @@ export default function NewPagePage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
-              <Input id="title" value={title} onChange={(e) => { setTitle(e.target.value); if (!slug) setSlug(slugify(e.target.value)) }} placeholder="About SkillSetu" required />
+              <Input id="title" value={title} onChange={(e) => { setTitle(e.target.value); if (!slug) setSlug(slugify(e.target.value)) }} placeholder="About MioDemy" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="slug">Slug</Label>

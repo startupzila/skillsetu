@@ -1,5 +1,5 @@
 /**
- * Shared UI components for SkillSetu (S5).
+ * Shared UI components for MioDemy (S5).
  *
  * These are presentational components used across public,
  * dashboard and console surfaces.

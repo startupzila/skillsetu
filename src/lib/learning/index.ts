@@ -1,5 +1,5 @@
 /**
- * Learning services for SkillSetu (S3).
+ * Learning services for MioDemy (S3).
  *
  * - assessmentService: published quizzes + question grading
  *   (CRITICAL: is_correct is never sent to the client before submission).

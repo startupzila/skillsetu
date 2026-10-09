@@ -9,7 +9,7 @@ import { Search as SearchIcon, Clock, BarChart3, BookOpen, FileQuestion } from '
 
 export const metadata: Metadata = {
   title: 'Search',
-  description: 'Search SkillSetu courses, lessons and questions.',
+  description: 'Search MioDemy courses, lessons and questions.',
 }
 
 interface PageProps {

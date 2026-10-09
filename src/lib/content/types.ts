@@ -1,5 +1,5 @@
 /**
- * SkillSetu — Content domain types
+ * MioDemy — Content domain types
  *
  * These TypeScript types mirror the Prisma schema / Supabase tables.
  * They are used by the service modules and API routes for type safety

@@ -7,7 +7,7 @@ import { FolderOpen } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'All Skills & Categories',
-  description: 'Browse all skill categories on SkillSetu — Office Skills, Digital Skills and more.',
+  description: 'Browse all skill categories on MioDemy — Office Skills, Digital Skills and more.',
 }
 
 /**

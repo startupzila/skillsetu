@@ -13,7 +13,7 @@ import {
 /**
  * LanguageSwitcher — switches between EN and HI.
  *
- * Uses a cookie (`skillsetu-lang`) so server components can read the
+ * Uses a cookie (`miodemy-lang`) so server components can read the
  * preferred language. The current path is preserved (no redirect).
  */
 export function LanguageSwitcher({ current = 'en' }: { current?: 'en' | 'hi' }) {
@@ -21,7 +21,7 @@ export function LanguageSwitcher({ current = 'en' }: { current?: 'en' | 'hi' }) 
   const pathname = usePathname()
 
   function switchLang(lang: 'en' | 'hi') {
-    document.cookie = `skillsetu-lang=${lang}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
+    document.cookie = `miodemy-lang=${lang}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
     router.refresh()
   }
 

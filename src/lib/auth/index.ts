@@ -1,5 +1,5 @@
 /**
- * SkillSetu — Auth library (S4)
+ * MioDemy — Auth library (S4)
  *
  * Server-side session, RBAC and audit helpers.
  *

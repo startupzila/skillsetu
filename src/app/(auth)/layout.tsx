@@ -15,7 +15,7 @@ export default function AuthLayout({
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <Link href="/" className="inline-block">
-            <h1 className="text-2xl font-bold tracking-tight">SkillSetu</h1>
+            <h1 className="text-2xl font-bold tracking-tight">MioDemy</h1>
           </Link>
           <p className="text-sm text-muted-foreground">
             Learn practical skills in your language

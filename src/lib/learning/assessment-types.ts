@@ -1,5 +1,5 @@
 /**
- * SkillSetu — Assessment domain types (S3)
+ * MioDemy — Assessment domain types (S3)
  *
  * Mirrors the assessment tables: questions, quizzes, mock tests, attempts.
  * @see prisma/schema.prisma (Assessment section)

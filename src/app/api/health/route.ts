@@ -4,7 +4,7 @@ import { createAdminClient, getSupabaseEnvStatus } from '@/lib/supabase'
 /**
  * GET /api/health
  *
- * Verifies that the SkillSetu infrastructure is wired correctly:
+ * Verifies that the MioDemy infrastructure is wired correctly:
  *   1. All required environment variables are present.
  *   2. Supabase project is reachable over HTTPS and the service-role
  *      key is valid (via auth.admin.listUsers, which requires the
@@ -68,7 +68,7 @@ export async function GET() {
   return NextResponse.json(
     {
       status: ok ? 'ok' : 'degraded',
-      service: 'skillsetu',
+      service: 'miodemy',
       timestamp: new Date().toISOString(),
       env: {
         url: env.url,

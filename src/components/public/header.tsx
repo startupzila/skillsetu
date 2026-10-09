@@ -39,7 +39,7 @@ export function Header({ session, lang = 'en' }: HeaderProps) {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-xl font-bold tracking-tight text-primary">
-              Skill<span className="text-foreground">Setu</span>
+              Mio<span className="text-foreground">Demy</span>
             </span>
           </Link>
 
@@ -101,7 +101,7 @@ export function Header({ session, lang = 'en' }: HeaderProps) {
                 <div className="flex flex-col gap-4 pt-6">
                   <div className="flex items-center justify-between pr-8">
                     <span className="font-bold text-lg">
-                      Skill<span className="text-primary">Setu</span>
+                      Mio<span className="text-primary">Demy</span>
                     </span>
                   </div>
 

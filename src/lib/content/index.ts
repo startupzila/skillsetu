@@ -1,5 +1,5 @@
 /**
- * Content services for SkillSetu.
+ * Content services for MioDemy.
  *
  * All services use the server Supabase client (anon key, RLS on).
  * Only published content is readable by the public.

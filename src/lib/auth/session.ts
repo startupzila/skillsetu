@@ -3,7 +3,7 @@ import type { Profile } from '@/lib/content/types'
 import type { RoleName } from './permissions'
 
 /**
- * SkillSetu — Session & authorization helpers (S4)
+ * MioDemy — Session & authorization helpers (S4)
  *
  * These helpers run server-side only. They read the Supabase session
  * from cookies and look up the user's roles + permissions from the DB.

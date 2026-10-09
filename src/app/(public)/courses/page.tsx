@@ -7,7 +7,7 @@ import { BookOpen, ArrowRight } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'All Courses',
-  description: 'Browse all SkillSetu courses — Excel, Word, PowerPoint, Digital Marketing and more. Learn in English and Hindi.',
+  description: 'Browse all MioDemy courses — Excel, Word, PowerPoint, Digital Marketing and more. Learn in English and Hindi.',
 }
 
 /**

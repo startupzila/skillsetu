@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: t.name,
-    description: t.description ?? `Browse ${t.name} courses on SkillSetu.`,
+    description: t.description ?? `Browse ${t.name} courses on MioDemy.`,
   }
 }
 

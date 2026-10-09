@@ -1,5 +1,5 @@
 /**
- * Public site components for SkillSetu (S5).
+ * Public site components for MioDemy (S5).
  */
 export { Header } from './header'
 export { Footer } from './footer'

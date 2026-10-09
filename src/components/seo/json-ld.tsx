@@ -38,7 +38,7 @@ export function JsonLdCourse({ course, courseUrl }: JsonLdCourseProps) {
       : {}),
     provider: {
       '@type': 'Organization',
-      name: 'SkillSetu',
+      name: 'MioDemy',
       url: process.env.NEXT_PUBLIC_SITE_URL,
     },
   }
@@ -85,7 +85,7 @@ export function JsonLdWebsite() {
   const data = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'SkillSetu',
+    name: 'MioDemy',
     url: process.env.NEXT_PUBLIC_SITE_URL,
     description: 'Structured, multilingual, practical skills learning platform.',
     potentialAction: {

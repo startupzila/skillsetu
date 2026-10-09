@@ -49,7 +49,7 @@ export default async function Footer({ lang = 'en' }: FooterProps) {
           {/* Brand */}
           <div className="space-y-3">
             <Link href="/" className="text-xl font-bold">
-              Skill<span className="text-primary">Setu</span>
+              Mio<span className="text-primary">Demy</span>
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs">
               {lang === 'hi'
@@ -81,7 +81,7 @@ export default async function Footer({ lang = 'en' }: FooterProps) {
         {/* Bottom bar */}
         <div className="mt-10 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            © {year} SkillSetu. {lang === 'hi' ? 'सर्वाधिकार सुरक्षित।' : 'All rights reserved.'}
+            © {year} MioDemy. {lang === 'hi' ? 'सर्वाधिकार सुरक्षित।' : 'All rights reserved.'}
           </p>
           <p className="text-xs text-muted-foreground">
             {lang === 'hi' ? 'सीखें → अभ्यास → परीक्षण → प्रगति' : 'Discover → Learn → Practice → Test → Track'}

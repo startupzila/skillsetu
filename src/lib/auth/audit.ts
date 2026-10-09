@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
- * SkillSetu — Audit log helper (S4)
+ * MioDemy — Audit log helper (S4)
  *
  * Writes immutable audit entries for administrative actions.
  * Audit logs are service-role only (RLS blocks public access).

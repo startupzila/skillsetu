@@ -20,7 +20,7 @@ export default async function PublicLayout({
   // Read language from cookie
   const headerList = await headers()
   const cookie = headerList.get('cookie') ?? ''
-  const langMatch = cookie.match(/skillsetu-lang=(en|hi)/)
+  const langMatch = cookie.match(/miodemy-lang=(en|hi)/)
   const lang = (langMatch?.[1] as 'en' | 'hi') ?? 'en'
 
   return (

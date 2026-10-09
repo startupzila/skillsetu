@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 /**
- * SkillSetu — middleware (S4)
+ * MioDemy — middleware (S4)
  *
  * 1. Refreshes the Supabase session on every request (so server components
  *    see the latest auth state without waiting for a client-side refresh).

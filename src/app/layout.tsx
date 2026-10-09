@@ -17,13 +17,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "SkillSetu — Learn practical skills in your language",
-    template: "%s | SkillSetu",
+    default: "MioDemy — Learn practical skills in your language",
+    template: "%s | MioDemy",
   },
   description:
-    "SkillSetu is a structured, multilingual, practical skills learning platform. Learn Excel, Word, Tally, Digital Marketing, AI tools and more — in English and Hindi.",
+    "MioDemy is a structured, multilingual, practical skills learning platform. Learn Excel, Word, Tally, Digital Marketing, AI tools and more — in English and Hindi.",
   keywords: [
-    "SkillSetu",
+    "MioDemy",
     "learn skills",
     "Excel",
     "Tally",
@@ -32,17 +32,17 @@ export const metadata: Metadata = {
     "Hindi tutorials",
     "practical skills",
   ],
-  authors: [{ name: "SkillSetu" }],
+  authors: [{ name: "MioDemy" }],
   openGraph: {
-    title: "SkillSetu — Learn practical skills in your language",
+    title: "MioDemy — Learn practical skills in your language",
     description:
       "Structured tutorials, examples, practice, quizzes and resources in English and Hindi.",
-    siteName: "SkillSetu",
+    siteName: "MioDemy",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "SkillSetu — Learn practical skills in your language",
+    title: "MioDemy — Learn practical skills in your language",
     description:
       "Structured tutorials, examples, practice, quizzes and resources in English and Hindi.",
   },

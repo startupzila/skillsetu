@@ -1,5 +1,5 @@
 /**
- * SkillSetu — Permission constants (S4 RBAC)
+ * MioDemy — Permission constants (S4 RBAC)
  *
  * All permission names defined in the seed (db/seeds/001_seed.sql).
  * Use these constants instead of raw strings to avoid typos.

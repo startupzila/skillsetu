@@ -1,5 +1,5 @@
 /**
- * SkillSetu — Learner domain types (S3)
+ * MioDemy — Learner domain types (S3)
  *
  * Mirrors the learner tables: enrollments, lesson_progress, bookmarks, notes.
  * @see prisma/schema.prisma (Learner section)

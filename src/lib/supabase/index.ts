@@ -1,5 +1,5 @@
 /**
- * Supabase clients for SkillSetu.
+ * Supabase clients for MioDemy.
  *
  * Three clients, each with a distinct purpose:
  *

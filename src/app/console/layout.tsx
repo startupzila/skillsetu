@@ -64,7 +64,7 @@ export default async function ConsoleLayout({
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/console" className="font-bold tracking-tight">
-              SkillSetu <span className="text-muted-foreground font-normal">Console</span>
+              MioDemy <span className="text-muted-foreground font-normal">Console</span>
             </Link>
             <nav className="hidden md:flex items-center gap-4 text-sm">
               <Link href="/console" className="text-muted-foreground hover:text-foreground">

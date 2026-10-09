@@ -6,7 +6,7 @@ import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
 import { BookOpen, GraduationCap, Languages, ArrowRight } from 'lucide-react'
 
 /**
- * SkillSetu — homepage.
+ * MioDemy — homepage.
  *
  * Server component: fetches published courses + categories from Supabase.
  * Rendered inside the (public) layout which provides Header + Footer.
@@ -124,7 +124,7 @@ export default async function Home() {
       <section className="border-t bg-muted/30">
         <div className="container mx-auto px-4 py-16">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight">Why SkillSetu?</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Why MioDemy?</h2>
             <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
               A learning experience designed for real outcomes
             </p>

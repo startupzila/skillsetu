@@ -9,7 +9,7 @@ import { Download, BookOpen, Package } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Store',
-  description: 'Browse books, resources and practice packs on SkillSetu.',
+  description: 'Browse books, resources and practice packs on MioDemy.',
 }
 
 function formatPrice(cents: number, currency: string): string {
