@@ -61,14 +61,10 @@ export function CourseCard({ course }: CourseCardProps) {
             <BookOpen className="h-4 w-4" />
             Start learning
           </span>
-          <a
-            href={`/courses/${course.slug}/pdf`}
-            onClick={(e) => e.stopPropagation()}
-            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
-          >
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
             <FileText className="h-3.5 w-3.5" />
             PDF
-          </a>
+          </span>
         </CardFooter>
       </Card>
     </Link>
