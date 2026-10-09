@@ -208,3 +208,82 @@ export async function adminRejectCentre(centreId: string) {
   if (error) return { data: null, error: error.message }
   return { data, error: null }
 }
+
+// ── CENTRE UPDATE/DELETE ───────────────────────────────────
+
+export async function adminGetCentre(centreId: string) {
+  await requirePermission('settings.manage')
+  const admin = createAdminClient()
+  const { data: centre, error } = await admin
+    .from('training_centres')
+    .select(`id, slug, name, about, status, email, phone, website, established_year,
+       locations:centre_locations(id, address_line1, address_line2, city, district, state, country, pincode, office_hours, is_primary, state_jurisdiction_id, district_jurisdiction_id, city_jurisdiction_id),
+       courses:centre_courses(id, title, description, duration_months, fees, mode)`)
+    .eq('id', centreId)
+    .single()
+  if (error) return { data: null, error: error.message }
+  return { data: centre, error: null }
+}
+
+export async function adminUpdateCentre(centreId: string, updates: {
+  name?: string; about?: string; email?: string; phone?: string; website?: string; established_year?: number; status?: string
+}) {
+  await requirePermission('settings.manage')
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('training_centres').update(updates).eq('id', centreId).select().single()
+  if (error) return { data: null, error: error.message }
+  await recordAudit({ action: 'centre.update', entityType: 'centre', entityId: centreId })
+  return { data, error: null }
+}
+
+export async function adminUpdateCentreLocation(locationId: string, updates: {
+  address_line1?: string; address_line2?: string; city?: string; district?: string; state?: string; pincode?: string; office_hours?: Record<string, string>
+}) {
+  await requirePermission('settings.manage')
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('centre_locations').update(updates).eq('id', locationId).select().single()
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+export async function adminUpdateCentreCourse(courseId: string, updates: {
+  title?: string; description?: string; duration_months?: number; fees?: number; mode?: string
+}) {
+  await requirePermission('settings.manage')
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('centre_courses').update(updates).eq('id', courseId).select().single()
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+export async function adminAddCentreCourse(input: { centre_id: string; title: string; description?: string; duration_months?: number; fees?: number; mode?: string }) {
+  await requirePermission('settings.manage')
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('centre_courses').insert({
+    centre_id: input.centre_id, title: input.title, description: input.description ?? null,
+    duration_months: input.duration_months ?? null, fees: input.fees ?? null, mode: input.mode ?? 'offline',
+  }).select().single()
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+export async function adminDeleteCentreCourse(courseId: string) {
+  await requirePermission('settings.manage')
+  const admin = createAdminClient()
+  const { error } = await admin.from('centre_courses').delete().eq('id', courseId)
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
+export async function adminDeleteCentre(centreId: string) {
+  await requirePermission('settings.manage')
+  const admin = createAdminClient()
+  // Delete location first (FK constraint)
+  await admin.from('centre_locations').delete().eq('centre_id', centreId)
+  await admin.from('centre_courses').delete().eq('centre_id', centreId)
+  await admin.from('centre_reviews').delete().eq('centre_id', centreId)
+  const { error } = await admin.from('training_centres').delete().eq('id', centreId)
+  if (error) return { error: error.message }
+  await recordAudit({ action: 'centre.delete', entityType: 'centre', entityId: centreId })
+  return { error: null }
+}

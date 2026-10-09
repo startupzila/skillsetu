@@ -87,9 +87,8 @@ export function JurisdictionsManager({ initialJurisdictions }: { initialJurisdic
             <Select value={parentId} onValueChange={setParentId}>
               <SelectTrigger><SelectValue placeholder="None (top level)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None (top level)</SelectItem>
                 {jurisdictions.filter(j => j.type !== 'city').map((j) => (
-                  <SelectItem key={j.id} value={j.id}>{TYPE_LABELS[j.type]}: {j.name}</SelectItem>
+                  <SelectItem key={j.id} value={j.id}>{TYPE_LABELS[j.type] || j.type}: {j.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

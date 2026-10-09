@@ -71,19 +71,24 @@ export default async function ConsoleCentresPage() {
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{courses?.length ?? 0}</td>
                     <td className="px-4 py-3 text-right">
-                      {c.status === 'pending' && (
-                        <div className="flex gap-1 justify-end">
-                          <form action={`/api/admin/centres/${c.id}?action=verify`} method="post">
-                            <Button type="submit" size="sm" variant="default" className="h-7 text-xs">Verify</Button>
-                          </form>
-                          <form action={`/api/admin/centres/${c.id}?action=reject`} method="post">
-                            <Button type="submit" size="sm" variant="ghost" className="h-7 text-xs text-destructive">Reject</Button>
-                          </form>
-                        </div>
-                      )}
-                      {c.status === 'verified' && (
-                        <Link href={`/centres/${c.slug}`} target="_blank" className="text-xs text-primary hover:underline">View</Link>
-                      )}
+                      <div className="flex gap-1 justify-end">
+                        <Button asChild size="sm" variant="ghost" className="h-7">
+                          <Link href={`/console/centres/${c.id}`}>Edit</Link>
+                        </Button>
+                        {c.status === 'pending' && (
+                          <>
+                            <form action={`/api/admin/centres/${c.id}?action=verify`} method="post">
+                              <Button type="submit" size="sm" variant="default" className="h-7 text-xs">Verify</Button>
+                            </form>
+                            <form action={`/api/admin/centres/${c.id}?action=reject`} method="post">
+                              <Button type="submit" size="sm" variant="ghost" className="h-7 text-xs text-destructive">Reject</Button>
+                            </form>
+                          </>
+                        )}
+                        {c.status === 'verified' && (
+                          <Link href={`/centres/${c.slug}`} target="_blank" className="text-xs text-primary hover:underline">View</Link>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
