@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Search, MapPin, Building2, Loader2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Centre {
   id: string
@@ -18,26 +19,56 @@ interface Centre {
   locations: Array<{ city: string; state: string; country: string }>
 }
 
+interface Jurisdiction {
+  id: string
+  name: string
+}
+
 interface CentresBrowserProps {
   initialCentres: Centre[]
+  states?: Jurisdiction[]
 }
 
 const PAGE_SIZE = 12
 
-export function CentresBrowser({ initialCentres }: CentresBrowserProps) {
+export function CentresBrowser({ initialCentres, states = [] }: CentresBrowserProps) {
   const router = useRouter()
   const [centres] = useState(initialCentres)
   const [search, setSearch] = useState('')
   const [visible, setVisible] = useState(PAGE_SIZE)
   const [detecting, setDetecting] = useState(false)
 
+  // Jurisdiction filters
+  const [selectedState, setSelectedState] = useState('')
+  const [districts, setDistricts] = useState<Jurisdiction[]>([])
+  const [selectedDistrict, setSelectedDistrict] = useState('')
+  const [cities, setCities] = useState<Jurisdiction[]>([])
+  const [selectedCity, setSelectedCity] = useState('')
+
+  async function loadDistricts(stateId: string) {
+    setSelectedDistrict(''); setSelectedCity(''); setCities([])
+    const res = await fetch(`/api/jurisdictions/districts?stateId=${stateId}`)
+    if (res.ok) setDistricts((await res.json()).data ?? [])
+  }
+  async function loadCities(districtId: string) {
+    setSelectedCity('')
+    const res = await fetch(`/api/jurisdictions/cities?districtId=${districtId}`)
+    if (res.ok) setCities((await res.json()).data ?? [])
+  }
+
   // Filter
   const filtered = centres.filter((c) => {
-    if (!search) return true
     const s = search.toLowerCase()
-    return c.name.toLowerCase().includes(s) ||
+    const matchSearch = !s || c.name.toLowerCase().includes(s) ||
       c.about?.toLowerCase().includes(s) ||
       c.locations?.some((l) => l.city?.toLowerCase().includes(s) || l.state?.toLowerCase().includes(s))
+    const stateName = states.find(st => st.id === selectedState)?.name
+    const matchState = !selectedState || c.locations?.some((l) => l.state?.toLowerCase() === stateName?.toLowerCase())
+    const districtName = districts.find(d => d.id === selectedDistrict)?.name
+    const matchDistrict = !selectedDistrict || c.locations?.some((l) => l.city?.toLowerCase() === districtName?.toLowerCase() || l.state?.toLowerCase() === districtName?.toLowerCase())
+    const cityName = cities.find(ci => ci.id === selectedCity)?.name
+    const matchCity = !selectedCity || c.locations?.some((l) => l.city?.toLowerCase() === cityName?.toLowerCase())
+    return matchSearch && matchState && matchDistrict && matchCity
   })
 
   const display = filtered.slice(0, visible)
@@ -80,6 +111,39 @@ export function CentresBrowser({ initialCentres }: CentresBrowserProps) {
           Use My Location
         </Button>
       </div>
+
+      {/* Hierarchical jurisdiction filters */}
+      {states.length > 0 && (
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">State</label>
+            <Select value={selectedState} onValueChange={(v) => { setSelectedState(v); loadDistricts(v); setVisible(PAGE_SIZE) }}>
+              <SelectTrigger><SelectValue placeholder="All States" /></SelectTrigger>
+              <SelectContent>
+                {states.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">District</label>
+            <Select value={selectedDistrict} onValueChange={(v) => { setSelectedDistrict(v); loadCities(v); setVisible(PAGE_SIZE) }} disabled={!selectedState}>
+              <SelectTrigger><SelectValue placeholder={selectedState ? 'All Districts' : 'Select state first'} /></SelectTrigger>
+              <SelectContent>
+                {districts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">City / Tehsil</label>
+            <Select value={selectedCity} onValueChange={(v) => { setSelectedCity(v); setVisible(PAGE_SIZE) }} disabled={!selectedDistrict}>
+              <SelectTrigger><SelectValue placeholder={selectedDistrict ? 'All Cities' : 'Select district first'} /></SelectTrigger>
+              <SelectContent>
+                {cities.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       {/* Results count */}
       <p className="text-sm text-muted-foreground">

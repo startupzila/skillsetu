@@ -6,8 +6,9 @@ import { EmptyState } from '@/components/shared'
 import { BookOpen, ArrowRight } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'All Courses',
-  description: 'Browse all MioDemy courses — Excel, Word, PowerPoint, Digital Marketing and more. Learn in English and Hindi.',
+  title: 'All Courses — Free Excel, Tally, Digital Marketing & More | MioDemy',
+  description: 'Browse all free courses on MioDemy. Learn Excel, Word, PowerPoint, Tally, Digital Marketing, AI tools and more with structured tutorials, practice exercises, quizzes and downloadable PDFs.',
+  keywords: ['free courses', 'Excel course', 'Tally course', 'Digital Marketing course', 'PowerPoint course', 'Word course', 'AI tools course', 'free online courses', 'learn skills online'],
 }
 
 /**

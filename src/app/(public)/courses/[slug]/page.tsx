@@ -8,6 +8,8 @@ import { JsonLdCourse, JsonLdBreadcrumbs } from '@/components/seo/json-ld'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Card, CardContent } from '@/components/ui/card'
+import { FileText, ArrowRight } from 'lucide-react'
 import {
   Clock,
   BarChart3,
@@ -296,6 +298,30 @@ export default async function CoursePage({ params }: PageProps) {
             })}
           </div>
         )}
+      </section>
+
+      {/* Free PDF Download CTA */}
+      <section className="border-t pt-10">
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="py-8">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-center sm:text-left">
+                <h2 className="text-xl font-bold flex items-center gap-2 justify-center sm:justify-start">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Free PDF & Notes Download
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Get free PDF tutorials, notes, and cheat sheets for {t.title}.
+                </p>
+              </div>
+              <Button asChild size="lg">
+                <Link href={`/courses/${course.slug}/pdf`}>
+                  Download Free PDFs <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Related courses */}

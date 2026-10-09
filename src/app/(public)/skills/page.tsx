@@ -6,8 +6,9 @@ import { EmptyState } from '@/components/shared'
 import { FolderOpen } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'All Skills & Categories',
-  description: 'Browse all skill categories on MioDemy — Office Skills, Digital Skills and more.',
+  title: 'All Skills & Categories — Learn Excel, Tally, Digital Marketing & More',
+  description: 'Browse all skill categories on MioDemy. Learn Excel, Word, PowerPoint, Tally, Digital Marketing, AI tools and more with free structured tutorials, practice exercises and quizzes.',
+  keywords: ['learn skills', 'skill categories', 'Excel tutorial', 'Tally tutorial', 'Digital Marketing course', 'PowerPoint tutorial', 'Word tutorial', 'AI tools', 'free skills training'],
 }
 
 /**

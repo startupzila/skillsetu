@@ -3,14 +3,13 @@ import type { Metadata } from 'next'
 import { listVerifiedCentres } from '@/lib/features/feature-service'
 import { listStates } from '@/lib/features/jurisdiction-service'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { CentresBrowser } from '@/components/shared/centres-browser'
 
 export const metadata: Metadata = {
-  title: 'Skill & Training Centres — Find Institutes Near You',
-  description: 'Browse verified skill and training centres across India. Find courses, fees, admission details, reviews, and contact information for training institutes near you.',
+  title: 'Skill & Training Centres in India — Find Institutes Near You | MioDemy',
+  description: 'Browse verified skill and training centres across India. Find courses, fees, admission details, reviews, and contact information for training institutes in your city.',
 }
 
 export default async function CentresPage({ searchParams }: { searchParams: Promise<{ city?: string; state?: string; lat?: string; lng?: string }> }) {
@@ -43,18 +42,33 @@ export default async function CentresPage({ searchParams }: { searchParams: Prom
         </Button>
       </div>
 
-      {/* State filter chips */}
-      {centreStates.size > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          <Link href="/centres" className="rounded-full border px-4 py-1.5 text-sm font-medium hover:bg-accent">All</Link>
-          {Array.from(centreStates).map((s) => (
-            <Link key={s} href={`/centres?state=${encodeURIComponent(s)}`} className="rounded-full border px-4 py-1.5 text-sm font-medium hover:bg-accent capitalize">{s}</Link>
-          ))}
-        </div>
-      )}
+      {/* Browser with search + hierarchical filter + load more */}
+      <CentresBrowser initialCentres={centres ?? []} states={states} />
 
-      {/* Browser with search + load more */}
-      <CentresBrowser initialCentres={centres ?? []} />
+      {/* SEO Content */}
+      <div className="mt-12 prose prose-sm max-w-none text-muted-foreground">
+        <h2 className="text-xl font-bold text-foreground">Find Skill & Training Centres Across India</h2>
+        <p>MioDemy&apos;s Training Centre Directory helps you find verified skill training institutes across India. Whether you&apos;re looking for Excel training centres in Mumbai, Tally courses in Delhi, Digital Marketing institutes in Bengaluru, or computer training centres in your city, our directory connects you with verified training providers.</p>
+        <p>Each centre profile includes complete details: courses offered with fees and duration, office hours, contact information, location with address, student reviews and ratings, and online admission options. Browse by state, district, or city to find training centres near you.</p>
+        <h3 className="text-lg font-semibold text-foreground mt-4">Popular Searches</h3>
+        <p>Training centres in Maharashtra, Training centres in Madhya Pradesh, Training centres in Delhi, Training centres in Karnataka, Training centres in Uttar Pradesh, Excel training institutes, Tally training centres, Digital Marketing institutes near me, computer training centres, skill development centres.</p>
+      </div>
+
+      {/* FAQs */}
+      <div className="mt-8 space-y-3">
+        <h2 className="text-xl font-bold">Frequently Asked Questions</h2>
+        {[
+          { q: 'How do I find training centres near me?', a: 'Use the search bar or filter by State, District, and City to find verified training centres in your area. You can also use the "Use My Location" button for automatic detection.' },
+          { q: 'Are these training centres verified?', a: 'Yes, all centres listed on MioDemy are verified by our team before going live. Each centre has a verified badge on their profile.' },
+          { q: 'Can I register my training centre on MioDemy?', a: 'Yes! Click "Register Centre" and fill out the registration form. Our team will verify your details and your centre page will go live.' },
+          { q: 'What information do training centre profiles include?', a: 'Each profile includes courses offered, fees, duration, mode (offline/online/hybrid), office hours, contact details, location, reviews, and ratings.' },
+        ].map((faq, i) => (
+          <div key={i} className="rounded-lg border p-4">
+            <h3 className="font-semibold text-sm mb-1">{faq.q}</h3>
+            <p className="text-sm text-muted-foreground">{faq.a}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

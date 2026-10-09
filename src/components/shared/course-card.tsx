@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Clock, BookOpen, ChevronRight } from 'lucide-react'
+import { Clock, BookOpen, ChevronRight, FileText } from 'lucide-react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import type { CourseWithTranslation } from '@/lib/content'
@@ -56,11 +56,19 @@ export function CourseCard({ course }: CourseCardProps) {
             </ul>
           )}
         </CardContent>
-        <CardFooter className="border-t pt-4">
+        <CardFooter className="border-t pt-4 flex items-center justify-between">
           <span className="text-sm font-medium text-primary group-hover:underline flex items-center gap-1">
             <BookOpen className="h-4 w-4" />
             Start learning
           </span>
+          <a
+            href={`/courses/${course.slug}/pdf`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            PDF
+          </a>
         </CardFooter>
       </Card>
     </Link>

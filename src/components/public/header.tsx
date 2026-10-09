@@ -28,6 +28,7 @@ export function Header({ session, lang = 'en' }: HeaderProps) {
   const navLinks = [
     { href: '/skills', label: lang === 'hi' ? 'स्किल्स' : 'Skills' },
     { href: '/courses', label: lang === 'hi' ? 'कोर्स' : 'Courses' },
+    { href: '/pdf-store', label: lang === 'hi' ? 'PDF स्टोर' : 'PDF Store' },
     { href: '/centres', label: lang === 'hi' ? 'सेंटर' : 'Centres' },
     { href: '/books', label: lang === 'hi' ? 'किताबें' : 'Books' },
   ]

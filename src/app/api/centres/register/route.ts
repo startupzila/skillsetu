@@ -10,8 +10,8 @@ export async function POST(request: Request) {
     state?: string; state_jurisdiction_id?: string;
     district?: string; district_jurisdiction_id?: string;
     city?: string; city_jurisdiction_id?: string;
-    pincode?: string;
-    courses?: Array<{ title: string; duration_months?: number; fees?: number; mode?: string }>;
+    pincode?: string; office_hours?: Record<string, string>;
+    courses?: Array<{ title: string; description?: string; duration_months?: number; fees?: number; mode?: string }>;
   }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     state_jurisdiction_id: body.state_jurisdiction_id ?? null,
     district_jurisdiction_id: body.district_jurisdiction_id ?? null,
     city_jurisdiction_id: body.city_jurisdiction_id ?? null,
+    office_hours: body.office_hours ?? null,
     is_primary: true,
   })
   if (lErr) console.error('Location error:', lErr.message)
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
       await supabase.from('centre_courses').insert({
         centre_id: centre.id,
         title: course.title,
+        description: course.description ?? null,
         duration_months: course.duration_months ?? null,
         fees: course.fees ?? null,
         mode: course.mode ?? 'offline',

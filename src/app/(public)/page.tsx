@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { CourseCard } from '@/components/shared'
 import { JsonLdWebsite } from '@/components/seo/json-ld'
+import { TypingHeading } from '@/components/public/typing-heading'
 import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
 import { BookOpen, GraduationCap, Languages, ArrowRight, Building2, Plus } from 'lucide-react'
 
@@ -23,17 +24,10 @@ export default async function Home() {
       {/* Hero */}
       <section className="border-b bg-gradient-to-b from-brand-muted/40 to-background">
         <div className="container mx-auto px-4 py-16 text-center space-y-5">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight max-w-3xl mx-auto">
-            Learn practical skills
-            <br />
-            <span className="text-primary">in your language</span>
-          </h1>
+          <TypingHeading />
           <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto">
-            Structured tutorials, examples, practice, quizzes and resources —
+            Structured Tutorials, Examples, Practice, Quizzes &amp; Resources —
             for Excel, Tally, Digital Marketing, AI tools and more.
-          </p>
-          <p className="text-xs text-muted-foreground/70 uppercase tracking-wider">
-            Learn in Your Language
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Button asChild size="lg">

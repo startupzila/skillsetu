@@ -127,6 +127,12 @@ export default async function ConsoleLayout({
               Media
             </Link>
             <Link
+              href="/console/categories"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Categories
+            </Link>
+            <Link
               href="/console/templates"
               className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
             >
@@ -170,6 +176,12 @@ export default async function ConsoleLayout({
               className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
             >
               Centres
+            </Link>
+            <Link
+              href="/console/jurisdictions"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Jurisdictions
             </Link>
             <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
               Marketing

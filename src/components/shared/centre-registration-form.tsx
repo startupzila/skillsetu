@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { JurisdictionSelector } from '@/components/shared/jurisdiction-selector'
 import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -49,14 +50,22 @@ export function CentreRegistrationForm({
   const [cityId, setCityId] = useState('')
   const [cityName, setCityName] = useState('')
 
-  // Courses (up to 3 during registration)
-  const [courses, setCourses] = useState([{ title: '', duration: '', fees: '', mode: 'offline' }])
+  // Courses (up to 5 during registration)
+  const [courses, setCourses] = useState([{ title: '', description: '', duration: '', fees: '', mode: 'offline' }])
 
   function addCourse() {
-    if (courses.length < 5) setCourses([...courses, { title: '', duration: '', fees: '', mode: 'offline' }])
+    if (courses.length < 5) setCourses([...courses, { title: '', description: '', duration: '', fees: '', mode: 'offline' }])
   }
   function updateCourse(idx: number, field: string, value: string) {
     setCourses(courses.map((c, i) => i === idx ? { ...c, [field]: value } : c))
+  }
+
+  // Office hours
+  const [officeHours, setOfficeHours] = useState({
+    mon: '9am-7pm', tue: '9am-7pm', wed: '9am-7pm', thu: '9am-7pm', fri: '9am-7pm', sat: '10am-5pm', sun: 'Closed',
+  })
+  function updateOfficeHours(day: string, value: string) {
+    setOfficeHours((prev) => ({ ...prev, [day]: value }))
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -74,8 +83,10 @@ export function CentreRegistrationForm({
             district: districtName, district_jurisdiction_id: districtId || undefined,
             city: cityName, city_jurisdiction_id: cityId || undefined,
             pincode: pincode || undefined,
+            office_hours: officeHours,
             courses: courses.filter(c => c.title).map(c => ({
-              title: c.title, duration_months: c.duration ? parseInt(c.duration) : undefined,
+              title: c.title, description: c.description || undefined,
+              duration_months: c.duration ? parseInt(c.duration) : undefined,
               fees: c.fees ? parseFloat(c.fees) : undefined, mode: c.mode,
             })),
           }),
@@ -154,23 +165,57 @@ export function CentreRegistrationForm({
         </CardContent>
       </Card>
 
+      {/* Office Hours */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Office Hours</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Object.entries(officeHours).map(([day, time]) => (
+              <div key={day} className="space-y-1">
+                <Label className="text-xs capitalize">{day}</Label>
+                <Input value={time} onChange={(e) => updateOfficeHours(day, e.target.value)} placeholder="9am-7pm" className="h-8 text-sm" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Courses */}
       <Card>
         <CardHeader><CardTitle className="text-base">Courses Offered</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {courses.map((course, idx) => (
-            <div key={idx} className="grid sm:grid-cols-4 gap-3 p-3 border rounded-lg">
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs">Course Title</Label>
-                <Input value={course.title} onChange={(e) => updateCourse(idx, 'title', e.target.value)} placeholder="Advanced Excel" />
+            <div key={idx} className="p-3 border rounded-lg space-y-3">
+              <div className="grid sm:grid-cols-4 gap-3">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs">Course Title</Label>
+                  <Input value={course.title} onChange={(e) => updateCourse(idx, 'title', e.target.value)} placeholder="Advanced Excel" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Duration (months)</Label>
+                  <Input type="number" value={course.duration} onChange={(e) => updateCourse(idx, 'duration', e.target.value)} placeholder="3" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Fees (₹)</Label>
+                  <Input type="number" value={course.fees} onChange={(e) => updateCourse(idx, 'fees', e.target.value)} placeholder="15000" />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Duration (months)</Label>
-                <Input type="number" value={course.duration} onChange={(e) => updateCourse(idx, 'duration', e.target.value)} placeholder="3" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Fees (₹)</Label>
-                <Input type="number" value={course.fees} onChange={(e) => updateCourse(idx, 'fees', e.target.value)} placeholder="15000" />
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs">Short Description</Label>
+                  <Input value={course.description} onChange={(e) => updateCourse(idx, 'description', e.target.value)} placeholder="Master VLOOKUP, PivotTables, Macros" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Mode</Label>
+                  <Select value={course.mode} onValueChange={(v) => updateCourse(idx, 'mode', v)}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="offline">Offline</SelectItem>
+                      <SelectItem value="online">Online</SelectItem>
+                      <SelectItem value="hybrid">Hybrid (Online + Offline)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           ))}
