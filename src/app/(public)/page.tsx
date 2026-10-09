@@ -123,7 +123,7 @@ export default async function Home() {
       {/* Training Centres */}
       <section className="container mx-auto px-4 py-16">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold tracking-tight">Find Training Centres Near You</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Find Skill & Training Centres Near You</h2>
           <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
             Browse verified skills and training institutes. Compare courses, fees, reviews, and admission details.
           </p>

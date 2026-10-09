@@ -4,7 +4,8 @@ import { adminListCentres } from '@/lib/features/feature-service'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Building2, MapPin } from 'lucide-react'
+import { Building2, MapPin, Plus } from 'lucide-react'
+import { CentreRegistrationForm } from '@/components/shared/centre-registration-form'
 
 export const metadata: Metadata = { title: 'Training Centres — Console' }
 
@@ -13,10 +14,26 @@ export default async function ConsoleCentresPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Training Centres</h1>
-        <p className="text-muted-foreground text-sm mt-1">Verify and manage training centre registrations.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Training Centres</h1>
+          <p className="text-muted-foreground text-sm mt-1">Verify, manage and register training centres.</p>
+        </div>
+        <Button asChild><Link href="/centres/register"><Plus className="h-4 w-4 mr-1.5" />Register Centre</Link></Button>
       </div>
+
+      {/* Registration form (inline in console) */}
+      <details className="group">
+        <summary className="cursor-pointer text-sm font-medium text-primary hover:underline">
+          + Quick Register a New Centre (inline form)
+        </summary>
+        <div className="mt-4">
+          <CentreRegistrationForm
+            apiEndpoint="/api/centres/register"
+            redirectAfter="/console/centres"
+          />
+        </div>
+      </details>
 
       {error && <Card><CardContent className="py-6 text-center text-sm text-destructive">{error}</CardContent></Card>}
 

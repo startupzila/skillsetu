@@ -30,7 +30,6 @@ export function Header({ session, lang = 'en' }: HeaderProps) {
     { href: '/courses', label: lang === 'hi' ? 'कोर्स' : 'Courses' },
     { href: '/centres', label: lang === 'hi' ? 'सेंटर' : 'Centres' },
     { href: '/books', label: lang === 'hi' ? 'किताबें' : 'Books' },
-    { href: '/about', label: lang === 'hi' ? 'हमारे बारे में' : 'About' },
   ]
 
   return (
