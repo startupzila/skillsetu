@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { CourseCard } from '@/components/shared'
 import { JsonLdWebsite } from '@/components/seo/json-ld'
 import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
-import { BookOpen, GraduationCap, Languages, ArrowRight } from 'lucide-react'
+import { BookOpen, GraduationCap, Languages, ArrowRight, Building2, Plus } from 'lucide-react'
 
 /**
  * MioDemy — homepage.
@@ -119,6 +119,30 @@ export default async function Home() {
           </div>
         </section>
       )}
+
+      {/* Training Centres */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold tracking-tight">Find Training Centres Near You</h2>
+          <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
+            Browse verified skills and training institutes. Compare courses, fees, reviews, and admission details.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button asChild size="lg">
+            <Link href="/centres">
+              <Building2 className="h-4 w-4 mr-2" />
+              Browse Centres
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <Link href="/centres/register">
+              <Plus className="h-4 w-4 mr-2" />
+              Register Your Centre
+            </Link>
+          </Button>
+        </div>
+      </section>
 
       {/* Methodology */}
       <section className="border-t bg-muted/30">

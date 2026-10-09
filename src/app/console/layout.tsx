@@ -165,6 +165,12 @@ export default async function ConsoleLayout({
             >
               Coupons
             </Link>
+            <Link
+              href="/console/centres"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Centres
+            </Link>
             <div className="pt-4 pb-2 px-3 text-xs font-medium text-muted-foreground uppercase">
               Marketing
             </div>

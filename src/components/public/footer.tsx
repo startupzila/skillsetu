@@ -29,6 +29,7 @@ export default async function Footer({ lang = 'en' }: FooterProps) {
       links: [
         { href: '/skills', label: lang === 'hi' ? 'सभी स्किल्स' : 'All Skills' },
         { href: '/courses', label: lang === 'hi' ? 'कोर्स' : 'Courses' },
+        { href: '/centres', label: lang === 'hi' ? 'सेंटर' : 'Centres' },
         { href: '/books', label: lang === 'hi' ? 'किताबें' : 'Books' },
       ],
     },
