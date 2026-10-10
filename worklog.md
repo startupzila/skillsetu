@@ -1104,3 +1104,189 @@ Stage Summary:
   structure). Site fully functional end-to-end with real data.
 - "Folder typo" was a phantom — confirmed via raw-byte inspection, no rename needed.
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: LESSON-EDITOR
+Agent: Z.ai Code (subagent, LESSON-EDITOR)
+Task: Rebuild integrated Lesson Editor — one page for lesson details + WYSIWYG content + MCQ manager + QNA manager
+
+Work Log:
+- Read worklog tail (last completed task: FIX-DEPLOY-3, real Supabase data wired).
+  Backend foundation for the editor was already in place from the prior agent:
+    * migration 004 added `lessons.video_url`, `lesson_translations.content_html`,
+      `QuestionType` enum value `descriptive`, `question_translations.model_answer`,
+      FKs `questions.lesson_id` and `orders.user_id`.
+    * `<RichTextEditor>` (TipTap) component at src/components/ui/rich-text-editor.tsx.
+    * `content-service.ts`: adminGetLesson (returns id, slug, status, duration_minutes,
+      video_url + nested translation { id, title, summary, content_html, status }),
+      adminUpdateLesson (core fields incl video_url + duration_minutes),
+      adminUpdateLessonTranslation (title, summary, content_html, status),
+      adminPublishLesson, adminDeleteLesson.
+    * `question-service.ts`: adminListQuestionsForLesson (returns translations[]
+      with language_code, question_text, explanation, model_answer + options[]
+      with id, sort_order, text (JSON), is_correct), adminCreateQuestion (slug,
+      question_type, lesson_id, question_text, explanation, model_answer, options),
+      adminUpdateQuestion + adminUpdateQuestionTranslation, adminCreateOption /
+      adminUpdateOption / adminDeleteOption, adminPublishQuestion, adminDeleteQuestion.
+    * API routes wired: PATCH /api/admin/lessons/[id] (lesson + translation),
+      POST /api/admin/lessons/[id]?action=publish, GET /api/admin/lessons/[id]/questions,
+      POST /api/admin/questions, PATCH /api/admin/questions/[id] (core + translation),
+      DELETE /api/admin/questions/[id], POST/PATCH/DELETE /api/admin/questions/[id]/options.
+- Replaced the legacy src/components/learning/lesson-editor.tsx (which only edited
+  title/summary + lazy-loaded the old block editor) with a brand-new integrated
+  editor — single client component, named export `LessonEditor({ courseId, lessonId })`.
+  Kept src/components/console/block-editor.tsx on disk (NOT imported by the new
+  editor) for backward compat with anything that still references it.
+- The new LessonEditor contains all four sections in one vertical scroll:
+    1) Lesson Details card — Title (Input), Summary (Textarea), YouTube video URL
+       (Input, video_url), Duration minutes (number Input). Save button → PATCH
+       /api/admin/lessons/{lessonId} body { lesson:{video_url, duration_minutes},
+       translation:{id, title, summary} }. Publish button → POST
+       /api/admin/lessons/{lessonId}?action=publish. Status badge + "Back to course"
+       link in the header. Empty video_url is sent as null; empty duration as null.
+    2) Lesson Content card — full TipTap <RichTextEditor> (the one from
+       src/components/ui/rich-text-editor.tsx) bound to content_html. Save
+       button → PATCH /api/admin/lessons/{lessonId} body { translation:{id,
+       content_html} }. minHeight=360 for a real writing surface. The old
+       BlockEditor is no longer rendered.
+    3) MCQ Manager card — fetches GET /api/admin/lessons/{lessonId}/questions and
+       filters to question_type ∈ {single_choice, multiple_choice, true_false}.
+       Each row shows the question text (rendered via dangerouslySetInnerHTML with
+       sanitizeHtml), a type badge (outline), a StatusBadge, the slug, and the
+       options list (✓ for correct, • for incorrect). Edit + Delete icon buttons.
+       "Add MCQ" + Edit open a <McqDialog> (Dialog) that handles BOTH create and
+       edit:
+         * Create: POST /api/admin/questions body { slug: 'mcq-'+Date.now().toString(36),
+           question_type (Select: single/multiple/true_false), lesson_id, question_text
+           (RichTextEditor HTML), explanation (RichTextEditor HTML, optional), options:
+           [{text:{en}, is_correct}] }.
+         * Edit: PATCH /api/admin/questions/{id} body { question_type, translation:{id,
+           question_text, explanation} }, then syncs options against the prior list —
+           DELETE for removed, PATCH for kept (text:{en}, is_correct), POST for new.
+         * Because the lesson-questions list endpoint does NOT return translation.id,
+           the dialog fires GET /api/admin/questions/{id} on open to fetch it; Save
+           stays disabled until that resolves (loadingMeta state + spinner).
+    4) QNA Manager card — same fetch, filtered to question_type === 'descriptive'.
+       Each row shows question text + a collapsible "Show model answer" (radix
+       Collapsible) that reveals the model_answer HTML sanitized. "Add QNA" + Edit
+       open a <QnaDialog>:
+         * Create: POST /api/admin/questions body { slug: 'qna-'+Date.now().toString(36),
+           question_type: 'descriptive', lesson_id, question_text (RichTextEditor HTML),
+           model_answer (RichTextEditor HTML), explanation: '', options: [] }.
+         * Edit: PATCH /api/admin/questions/{id} body { translation:{id, question_text,
+           model_answer} }. Same translation.id fetch-on-open pattern as McqDialog.
+- Shared <QuestionRow> component renders both MCQ and QNA list rows (kind prop
+  toggles the options list vs the collapsible model-answer). All read-only HTML
+  (question text, model answer) is passed through sanitizeHtml before being
+  rendered with dangerouslySetInnerHTML.
+- useTransition wraps every mutation (lesson save, content save, publish, question
+  create/update/delete, option sync); isPending disables buttons and shows Loader2
+  spinners. After every successful mutation, router.refresh() is called so any
+  server-rendered lists elsewhere on the page re-fetch.
+- TypeScript strict — no `any`. All API response shapes are typed via local
+  interfaces (LessonData, QuestionData, QuestionOption, QuestionTranslation).
+  The options[].text field on the wire is JSON ({en, hi?}); a helper
+  optionEnText() tolerates both object and string forms (defensive against
+  legacy JSON-vs-string quirks).
+- Lint: bun run lint → 0 errors, 0 warnings (initial pass had 2 warnings from
+  leftover `// eslint-disable-next-line react/no-danger` comments; react/no-danger
+  is not enabled in the project's eslint config so I removed those directives).
+- Verification: started `next dev -p 3000` (Turbopack). curl
+  http://127.0.0.1:3000/console/courses/test/lessons/test → HTTP 307 (expected
+  redirect to /login because middleware protects /console; the route's page.tsx
+  → LessonEditor module compiled cleanly — no "Failed to compile" / "Module not
+  found" / "⨯ Error" lines in dev.log). Home route / → HTTP 200.
+- No files under src/app/(public) or src/app/api were modified. The route
+  src/app/console/courses/[id]/lessons/[lessonId]/page.tsx is unchanged — it
+  already rendered <LessonEditor courseId lessonId />.
+
+Stage Summary:
+- Single integrated Lesson Editor shipped at src/components/learning/lesson-editor.tsx.
+  Editing a lesson's details, its WYSIWYG content body, its MCQs, and its
+  descriptive Q&As now all happen on one page (WordPress-post style), replacing
+  the legacy title/summary-only + BlockEditor layout.
+- Backend (migration 004 + content-service + question-service + API routes)
+  already in place from the prior agent — no backend changes needed.
+- Lint clean. Lesson route returns 307 (auth redirect) — no compile errors.
+  BlockEditor file preserved on disk for backward compat but no longer imported.
+- GAPS / TODOs: (a) the lesson-questions list endpoint returns no translation.id,
+  so each Edit dialog fires an extra GET /api/admin/questions/{id} to fetch it
+  before Save is enabled — a backend follow-up could include the translation id in
+  the list response to avoid that round-trip. (b) The MCQ option sync in the Edit
+  dialog always PATCHes every kept option (even unchanged ones) — acceptable
+  given the API contract but slightly wasteful; could be optimized to diff and
+  only PATCH changed rows. (c) Question reordering within the lesson (sort_order)
+  is not exposed in this editor — questions are listed in created_at order.
+
+---
+Task ID: CONSOLE-INTEGRATED
+Agent: Z.ai Code (main)
+Task: Integrated console course editor + WYSIWYG visual editor + lesson-attached MCQ/QNA + fix orders bug + course details edit
+
+Work Log:
+- Synced sandbox to remote (local had diverged commit with same content; reset --hard origin/main + cleaned stray untracked files). Restored .env with real Supabase credentials.
+- DB migration 004 (db/migrations/004_console_integrated.sql) — APPLIED + verified:
+  • lessons.video_url TEXT (language-agnostic YouTube link per lesson)
+  • lesson_translations.content_html TEXT (WYSIWYG HTML body)
+  • QuestionType enum += 'descriptive' (for QNA / subjective questions)
+  • question_translations.model_answer TEXT (HTML model answer for descriptive Qs)
+  • FK questions.lesson_id → lessons(id) ON DELETE SET NULL (was orphan column)
+  • FK quizzes.lesson_id → lessons(id) (was orphan column)
+  • FK orders.user_id → profiles(id) ON DELETE CASCADE (FIXES the /console/orders bug)
+  • question_options.updated_at column (was missing)
+  • NOTIFY pgrst to refresh PostgREST schema cache
+- Visual WYSIWYG editor:
+  • Installed TipTap packages (@tiptap/react, starter-kit, link, image, table, table-row/cell/header, text-align, underline, placeholder, isomorphic-dompurify).
+  • Built src/components/ui/rich-text-editor.tsx — full toolbar (H1/H2/H3, bold, italic, underline, strike, code, lists, quote, code block, divider, link, image, table + row/col controls, alignment, undo/redo). Outputs clean HTML. Controlled component (value/onChange HTML).
+  • Built src/lib/sanitize-html.ts (isomorphic-dompurify) — sanitizes WYSIWYG HTML before rendering on the public side (strips scripts/event handlers/unsafe tags).
+- Backend services + API (src/lib/admin/content-service.ts + question-service.ts):
+  • adminUpdateCourseTranslation (title, descriptions, outcomes, prereqs, audience)
+  • adminUpdateModule / adminUpdateModuleTranslation / adminDeleteModule
+  • adminUpdateLesson (video_url, duration, status, slug) + adminDeleteLesson + adminGetLesson
+  • adminUpdateLessonTranslation now accepts content_html
+  • adminPublishLesson now ALSO publishes the EN translation (fixed pre-existing bug: RLS hid draft translations → lesson 404 on public)
+  • QuestionInput += model_answer; descriptive questions skip options
+  • adminUpdateQuestion accepts lesson_id; adminUpdateQuestionTranslation accepts model_answer
+  • adminCreateOption / adminDeleteOption / adminListQuestionsForLesson
+- New API routes:
+  • POST /api/admin/modules; PATCH+DELETE /api/admin/modules/[id]
+  • GET /api/admin/lessons/[id]; PATCH (video_url + content_html); POST ?action=publish; DELETE
+  • GET /api/admin/lessons/[id]/questions (list MCQ + QNA for a lesson)
+  • POST /api/admin/questions/[id]/options; PATCH; DELETE (option CRUD)
+  • Extended PATCH /api/admin/courses/[id] (course + translation in one call)
+  • Extended PATCH /api/admin/questions/[id] (core + translation + model_answer)
+  • Fixed /api/admin/orders GET (try/catch → 401 instead of 500 for unauth)
+- Console UI — integrated course editor (src/app/console/courses/[id]/page.tsx rebuilt):
+  • CourseDetailsEditor (src/components/console/course-details-editor.tsx) — inline editable course title/slug/difficulty/duration/descriptions/outcomes/prereqs/audience. NEW: was read-only before.
+  • CurriculumManager (src/components/console/curriculum-manager.tsx) — functional add/rename/delete modules + add/delete/publish lessons. NEW: "Add Module"/"Add Lesson" buttons were dead before.
+  • Sidebar relabeled "Courses" → "modules, lessons, MCQ & QNA"; removed dead /console/lessons + /console/users links.
+- Console UI — integrated lesson editor (src/components/learning/lesson-editor.tsx rebuilt by subagent):
+  • Section 1: Lesson details (title, summary, YouTube video URL, duration) + Save + Publish
+  • Section 2: WYSIWYG content (TipTap RichTextEditor) → saves content_html
+  • Section 3: MCQ manager (add/edit/delete MCQs with WYSIWYG question + explanation + options + correct flag)
+  • Section 4: QNA manager (add/edit/delete descriptive questions with WYSIWYG question + model answer)
+  • All on ONE page (WordPress post-edit style).
+- Frontend lesson page (src/app/(public)/courses/[slug]/[module]/[lesson]/page.tsx):
+  • LessonVideo component (src/components/learning/lesson-video.tsx) — renders YouTube embed from video_url, shown right after the title/summary, BEFORE content.
+  • WYSIWYG content rendered (content_html, sanitized) with prose styling; falls back to legacy blocks if no content_html.
+  • LessonPractice component (src/components/learning/lesson-practice.tsx) — w3schools-style practice widgets below the lesson:
+    - MCQ cards: pick answer(s) → "Check answer" → green/red feedback + explanation (HTML)
+    - QNA cards: textarea for learner answer → "Reveal model answer" → model answer (HTML)
+- Bug fix: /console/orders "Could not find a relationship between 'orders' and 'profiles'" — root cause was missing orders_user_id_fkey (Prisma Order model had no @relation to Profile). Migration 004 added the FK; verified the PostgREST join `user:profiles!orders_user_id_fkey(display_name)` now returns 200 with data.
+- Browser verification (logged in as admin@miodemy.com):
+  • Course editor: renders "Course Details" + "Edit details" (expandable form) + "Curriculum" + "Add Module" + existing modules.
+  • Lesson editor: renders "Edit Lesson" + "Lesson details" with "YouTube video URL" input + "Save changes" + "Lesson content" (WYSIWYG) with "Save content" + "Add MCQ" + "Add QNA" — all on one page.
+  • Orders console page: renders "Orders" heading, NO "relationship" error.
+  • Public lesson page: YouTube embed + WYSIWYG content (headings, bold, italic, lists) + "Practice Questions" (MCQ with Check answer) + "Review Questions" (QNA with Reveal model answer) — all rendered.
+- End-to-end API test: create module → create lesson → GET lesson (video_url+content_html) → PATCH (video_url+HTML content) → create MCQ (lesson-attached) → create QNA (descriptive, model_answer) → list questions for lesson (2 questions, types single_choice+descriptive) → publish. All passed.
+- Fixed TipTap v3 import bug: @tiptap/extension-table has NO default export (uses named `{ Table }`); all other extensions have default exports. Corrected the import.
+- Lint: 0 errors, 0 warnings. dev.log: no unhandled errors after fixes.
+
+Stage Summary:
+- Integrated course editor: course details (editable) + modules + lessons all managed from /console/courses/[id] (WordPress-style). Lesson content + MCQ + QNA all on /console/courses/[id]/lessons/[lessonId].
+- WYSIWYG visual editor (TipTap) replaces markdown/textareas for lesson content, question text, explanations, model answers. Formatting: headings, paragraphs, bold/italic/underline, lists, tables, images, links, code, alignment.
+- Lesson-attached MCQ + QNA (descriptive) with new 'descriptive' question type + model_answer. Public lesson page shows them inline below the lesson (w3schools style).
+- YouTube video per lesson (video_url), shown after title on the public lesson page.
+- /console/orders bug FIXED (missing orders_user_id_fkey FK added).
+- Standalone Questions/QNA pages merged into lesson flow; sidebar cleaned (dead links removed).
+- All changes committed and pushed to GitHub.

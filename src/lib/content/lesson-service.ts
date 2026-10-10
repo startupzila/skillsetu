@@ -41,7 +41,7 @@ export async function getPublishedLessonBySlug(
   const { data: lesson, error: lessonErr } = await supabase
     .from('lessons')
     .select(
-      'id, module_id, slug, sort_order, lesson_type, status, duration_minutes, published_at',
+      'id, module_id, slug, sort_order, lesson_type, status, duration_minutes, video_url, published_at',
     )
     .in('module_id', moduleIds)
     .eq('slug', lessonSlug)
@@ -52,11 +52,11 @@ export async function getPublishedLessonBySlug(
   // 3. Find the module (for slug + prev/next)
   const lessonModule = modules.find((m) => m.id === lesson.module_id)!
 
-  // 4. Get the lesson translation for the requested language
+  // 4. Get the lesson translation for the requested language (incl. content_html)
   const { data: translation, error: transErr } = await supabase
     .from('lesson_translations')
     .select(
-      'id, lesson_id, language_code, title, summary, status, translator_id, reviewer_id, created_at, updated_at',
+      'id, lesson_id, language_code, title, summary, content_html, status, translator_id, reviewer_id, created_at, updated_at',
     )
     .eq('lesson_id', lesson.id)
     .eq('language_code', language)
@@ -64,13 +64,28 @@ export async function getPublishedLessonBySlug(
     .single()
   if (transErr) return { data: null, error: transErr.message }
 
-  // 5. Get blocks (ordered)
+  // 5. Get blocks (ordered) — legacy structured blocks (kept for back-compat;
+  //    new content lives in content_html via the WYSIWYG editor)
   const { data: blocks, error: blocksErr } = await supabase
     .from('lesson_blocks')
     .select('id, lesson_translation_id, block_type, sort_order, data, created_at, updated_at')
     .eq('lesson_translation_id', translation.id)
     .order('sort_order', { ascending: true })
   if (blocksErr) return { data: null, error: blocksErr.message }
+
+  // 5b. Get published questions attached to this lesson (MCQ + descriptive),
+  //     with their translations + options (correct flag is shown — these are
+  //     practice questions, not a graded quiz).
+  const { data: questions } = await supabase
+    .from('questions')
+    .select(
+      `id, slug, question_type, difficulty,
+       translations:question_translations(language_code, question_text, explanation, model_answer),
+       options:question_options(id, sort_order, text, is_correct)`,
+    )
+    .eq('lesson_id', lesson.id)
+    .eq('status', 'published')
+    .order('created_at', { ascending: true })
 
   // 6. Prev/next lesson within the same module
   const { data: siblings } = await supabase
@@ -94,6 +109,7 @@ export async function getPublishedLessonBySlug(
       lesson: lesson as LessonPageData['lesson'],
       translation: translation as LessonPageData['translation'],
       blocks: (blocks ?? []) as LessonPageData['blocks'],
+      questions: (questions ?? []) as LessonPageData['questions'],
       course: { id: course.id, slug: course.slug },
       module: { id: lessonModule.id, slug: lessonModule.slug },
       prevLesson,

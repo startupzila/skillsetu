@@ -122,18 +122,7 @@ export default async function ConsoleLayout({
               className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
             >
               Courses
-            </Link>
-            <Link
-              href="/console/lessons"
-              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
-            >
-              Lessons
-            </Link>
-            <Link
-              href="/console/questions"
-              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
-            >
-              Questions
+              <span className="block text-[10px] text-muted-foreground/70">modules, lessons, MCQ &amp; QNA</span>
             </Link>
             <Link
               href="/console/media"
@@ -236,12 +225,6 @@ export default async function ConsoleLayout({
               className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
             >
               Analytics
-            </Link>
-            <Link
-              href="/console/users"
-              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
-            >
-              Users
             </Link>
           </nav>
         </aside>

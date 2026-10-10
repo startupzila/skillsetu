@@ -13,9 +13,12 @@ import {
   MobileCourseNav,
   type SidebarModule,
 } from '@/components/learning'
+import { LessonVideo } from '@/components/learning/lesson-video'
+import { LessonPractice } from '@/components/learning/lesson-practice'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { safeFetch } from '@/lib/safe-fetch'
+import { sanitizeHtml } from '@/lib/sanitize-html'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Clock } from 'lucide-react'
@@ -79,6 +82,7 @@ export default async function LessonPage({ params }: PageProps) {
     lesson: lessonData,
     translation,
     blocks,
+    questions,
     course,
     module: mod,
   } = lessonResult.data
@@ -219,8 +223,22 @@ export default async function LessonPage({ params }: PageProps) {
               </div>
             </header>
 
-            {/* Content blocks */}
-            <ContentRenderer blocks={blocks} />
+            {/* Video — shown right after the title/summary, before content */}
+            <LessonVideo url={lessonData.video_url} />
+
+            {/* WYSIWYG content (new) — takes precedence over legacy blocks */}
+            {translation.content_html ? (
+              <article
+                className="prose prose-slate dark:prose-invert max-w-none prose-headings:scroll-mt-20 prose-pre:bg-muted prose-pre:text-foreground prose-img:rounded-lg prose-table:border-border"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(translation.content_html) }}
+              />
+            ) : (
+              /* Legacy structured blocks (back-compat for older lessons) */
+              <ContentRenderer blocks={blocks} />
+            )}
+
+            {/* Lesson-attached practice questions (MCQ + QNA), w3schools style */}
+            <LessonPractice questions={questions ?? []} />
 
             <Separator className="my-8" />
 

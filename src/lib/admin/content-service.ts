@@ -106,7 +106,7 @@ export async function adminCreateCourse(input: CourseInput) {
   return { data: course, error: null }
 }
 
-/** Update a course. */
+/** Update a course's core fields (status, difficulty, duration, slug, …). */
 export async function adminUpdateCourse(courseId: string, updates: Record<string, unknown>) {
   await requirePermission('course.update')
   const admin = createAdminClient()
@@ -115,6 +115,36 @@ export async function adminUpdateCourse(courseId: string, updates: Record<string
     .from('courses')
     .update(updates)
     .eq('id', courseId)
+    .select()
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  await recordAudit({ action: 'course.update', entityType: 'course', entityId: courseId })
+  return { data, error: null }
+}
+
+/** Update a course's EN translation (title, descriptions, outcomes, …). */
+export async function adminUpdateCourseTranslation(
+  courseId: string,
+  language: string,
+  updates: {
+    title?: string
+    short_description?: string | null
+    description?: string | null
+    learning_outcomes?: string[] | null
+    prerequisites?: string[] | null
+    target_audience?: string[] | null
+    status?: string
+  },
+) {
+  await requirePermission('course.update')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('course_translations')
+    .update(updates)
+    .eq('course_id', courseId)
+    .eq('language_code', language)
     .select()
     .single()
 
@@ -220,6 +250,43 @@ export async function adminCreateModule(input: ModuleInput) {
   return { data: mod, error: null }
 }
 
+/** Update a module's core fields (slug, sort_order, status). */
+export async function adminUpdateModule(moduleId: string, updates: Record<string, unknown>) {
+  await requirePermission('course.update')
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('modules').update(updates).eq('id', moduleId).select().single()
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Update a module's EN translation (title, description). */
+export async function adminUpdateModuleTranslation(
+  moduleId: string,
+  language: string,
+  updates: { title?: string; description?: string | null },
+) {
+  await requirePermission('course.update')
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('module_translations')
+    .update(updates)
+    .eq('module_id', moduleId)
+    .eq('language_code', language)
+    .select()
+    .single()
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Delete a module (cascades to translations + lessons). */
+export async function adminDeleteModule(moduleId: string) {
+  await requirePermission('course.update')
+  const admin = createAdminClient()
+  const { error } = await admin.from('modules').delete().eq('id', moduleId)
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
 // ── LESSONS ────────────────────────────────────────────────
 
 export interface LessonInput {
@@ -265,7 +332,27 @@ export async function adminCreateLesson(input: LessonInput) {
   return { data: lesson, error: null }
 }
 
-/** Publish a lesson. */
+/** Update a lesson's core fields (slug, sort_order, status, duration, video_url). */
+export async function adminUpdateLesson(lessonId: string, updates: Record<string, unknown>) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('lessons').update(updates).eq('id', lessonId).select().single()
+  if (error) return { data: null, error: error.message }
+  await recordAudit({ action: 'lesson.update', entityType: 'lesson', entityId: lessonId })
+  return { data, error: null }
+}
+
+/** Delete a lesson (cascades to translations + blocks; questions set to null lesson_id). */
+export async function adminDeleteLesson(lessonId: string) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+  const { error } = await admin.from('lessons').delete().eq('id', lessonId)
+  if (error) return { error: error.message }
+  await recordAudit({ action: 'lesson.delete', entityType: 'lesson', entityId: lessonId })
+  return { error: null }
+}
+
+/** Publish a lesson (and its EN translation — both must be published for RLS). */
 export async function adminPublishLesson(lessonId: string) {
   await requirePermission('lesson.publish')
   const admin = createAdminClient()
@@ -281,14 +368,24 @@ export async function adminPublishLesson(lessonId: string) {
     .single()
 
   if (error) return { data: null, error: error.message }
+
+  // Also publish the EN translation (RLS hides draft translations from the
+  // public — a lesson is only visible when both lesson + translation are
+  // published). Best-effort: ignore error if no EN translation exists yet.
+  await admin
+    .from('lesson_translations')
+    .update({ status: 'published' })
+    .eq('lesson_id', lessonId)
+    .eq('language_code', 'en')
+
   await recordAudit({ action: 'lesson.publish', entityType: 'lesson', entityId: lessonId })
   return { data, error: null }
 }
 
-/** Update lesson translation (title, summary). */
+/** Update lesson translation (title, summary, content_html). */
 export async function adminUpdateLessonTranslation(
   lessonTranslationId: string,
-  updates: { title?: string; summary?: string },
+  updates: { title?: string; summary?: string | null; content_html?: string | null; status?: string },
 ) {
   await requirePermission('lesson.update')
   const admin = createAdminClient()
@@ -301,6 +398,7 @@ export async function adminUpdateLessonTranslation(
     .single()
 
   if (error) return { data: null, error: error.message }
+  await recordAudit({ action: 'lesson.update', entityType: 'lesson', entityId: lessonTranslationId })
   return { data, error: null }
 }
 
@@ -399,11 +497,36 @@ export async function adminGetLessonTranslation(lessonId: string, language = 'en
 
   const { data, error } = await admin
     .from('lesson_translations')
-    .select('id, title, summary, status')
+    .select('id, title, summary, content_html, status')
     .eq('lesson_id', lessonId)
     .eq('language_code', language)
     .single()
 
   if (error) return { data: null, error: error.message }
   return { data, error: null }
+}
+
+/** Get a lesson (including draft) by ID with its video_url + EN translation (incl content_html). */
+export async function adminGetLesson(lessonId: string) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data: lesson, error: lErr } = await admin
+    .from('lessons')
+    .select('id, slug, sort_order, lesson_type, status, duration_minutes, video_url, module_id')
+    .eq('id', lessonId)
+    .single()
+  if (lErr) return { data: null, error: lErr.message }
+
+  const { data: trans } = await admin
+    .from('lesson_translations')
+    .select('id, title, summary, content_html, status')
+    .eq('lesson_id', lessonId)
+    .eq('language_code', 'en')
+    .single()
+
+  return {
+    data: { ...lesson, translation: trans },
+    error: null,
+  }
 }

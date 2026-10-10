@@ -19,7 +19,8 @@ export interface QuestionInput {
   // EN translation
   question_text: string
   explanation?: string
-  // Options
+  model_answer?: string // HTML — for descriptive questions
+  // Options (MCQ only; empty for descriptive)
   options: Array<{
     text: { en: string; hi?: string }
     is_correct: boolean
@@ -104,12 +105,14 @@ export async function adminCreateQuestion(input: QuestionInput) {
     language_code: 'en',
     question_text: input.question_text,
     explanation: input.explanation ?? null,
+    model_answer: input.model_answer ?? null,
     status: 'draft',
   })
   if (tErr) return { data: null, error: tErr.message }
 
-  // Insert options
-  if (input.options.length > 0) {
+  // Insert options (MCQ types only)
+  const mcqTypes = ['single_choice', 'multiple_choice', 'true_false']
+  if (mcqTypes.includes(input.question_type ?? 'single_choice') && input.options.length > 0) {
     const { error: oErr } = await admin.from('question_options').insert(
       input.options.map((opt, i) => ({
         question_id: question.id,
@@ -128,7 +131,7 @@ export async function adminCreateQuestion(input: QuestionInput) {
 /** Update a question's core fields. */
 export async function adminUpdateQuestion(
   questionId: string,
-  updates: { question_type?: string; difficulty?: string; topic?: string | null; status?: string },
+  updates: { question_type?: string; difficulty?: string; topic?: string | null; status?: string; lesson_id?: string | null },
 ) {
   await requirePermission('question.create')
   const admin = createAdminClient()
@@ -144,10 +147,10 @@ export async function adminUpdateQuestion(
   return { data, error: null }
 }
 
-/** Update question translation (text + explanation). */
+/** Update question translation (text + explanation + model_answer). */
 export async function adminUpdateQuestionTranslation(
   translationId: string,
-  updates: { question_text?: string; explanation?: string },
+  updates: { question_text?: string; explanation?: string | null; model_answer?: string | null },
 ) {
   await requirePermission('question.create')
   const admin = createAdminClient()
@@ -177,6 +180,65 @@ export async function adminUpdateOption(
     .eq('id', optionId)
     .select()
     .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Create a new option (used when adding options inline). */
+export async function adminCreateOption(
+  questionId: string,
+  option: { text: { en: string; hi?: string }; is_correct: boolean },
+) {
+  await requirePermission('question.create')
+  const admin = createAdminClient()
+
+  const { data: existing } = await admin
+    .from('question_options')
+    .select('sort_order')
+    .eq('question_id', questionId)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+  const nextOrder = (existing && existing.length > 0 ? (existing[0] as { sort_order: number }).sort_order : 0) + 1
+
+  const { data, error } = await admin
+    .from('question_options')
+    .insert({
+      question_id: questionId,
+      sort_order: nextOrder,
+      text: option.text,
+      is_correct: option.is_correct,
+    })
+    .select()
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Delete an option. */
+export async function adminDeleteOption(optionId: string) {
+  await requirePermission('question.create')
+  const admin = createAdminClient()
+  const { error } = await admin.from('question_options').delete().eq('id', optionId)
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
+/** List all questions attached to a lesson (for the integrated lesson editor). */
+export async function adminListQuestionsForLesson(lessonId: string) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('questions')
+    .select(
+      `id, slug, question_type, difficulty, status, topic, published_at, created_at,
+       translations:question_translations(id, language_code, question_text, explanation, model_answer, status),
+       options:question_options(id, sort_order, text, is_correct)`,
+    )
+    .eq('lesson_id', lessonId)
+    .order('created_at', { ascending: true })
 
   if (error) return { data: null, error: error.message }
   return { data, error: null }

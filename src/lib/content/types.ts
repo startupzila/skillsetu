@@ -158,6 +158,7 @@ export interface Lesson {
   lesson_type: LessonType
   status: ContentStatus
   duration_minutes: number | null
+  video_url: string | null
   published_at: string | null
   last_reviewed_at: string | null
   next_review_at: string | null
@@ -171,6 +172,7 @@ export interface LessonTranslation {
   language_code: string
   title: string
   summary: string | null
+  content_html: string | null
   status: TranslationStatus
   translator_id: string | null
   reviewer_id: string | null
@@ -234,12 +236,34 @@ export interface CourseWithCurriculum extends Course {
   modules: CurriculumModule[]
 }
 
+// ── Lesson-attached questions (public practice: MCQ + QNA) ──
+
+export interface LessonQuestion {
+  id: string
+  slug: string
+  question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'descriptive'
+  difficulty: 'easy' | 'medium' | 'hard'
+  translations: {
+    language_code: string
+    question_text: string
+    explanation: string | null
+    model_answer: string | null
+  }[]
+  options: {
+    id: string
+    sort_order: number
+    text: { en: string; hi?: string }
+    is_correct: boolean
+  }[]
+}
+
 // ── Lesson page (composite view) ─────────────────────────
 
 export interface LessonPageData {
   lesson: Lesson
   translation: LessonTranslation
   blocks: LessonBlock[]
+  questions: LessonQuestion[]
   course: {
     id: string
     slug: string
