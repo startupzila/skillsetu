@@ -203,15 +203,12 @@ export async function getPublishedCourseBySlug(
     | { category: { id: string; slug: string; translations: { language_code: string; name: string }[] } }[]
     | undefined
 
-  // Filter translations by language if specified
+  // Build the result — modules is our filtered curriculum (NOT the raw nested
+  // array from the query). Do NOT delete it.
   const result: CourseWithCurriculum = {
     ...(course as unknown as CourseWithTranslation),
     modules: curriculum,
   }
-
-  // Clean up the raw nested fields that aren't in the type
-  delete (result as Record<string, unknown>).course_categories
-  delete (result as Record<string, unknown>).modules as unknown
 
   if (language) {
     result.translations = result.translations.filter(
