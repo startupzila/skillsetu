@@ -28,8 +28,9 @@ export function Header({ session, lang = 'en' }: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const navLinks = [
-    { href: localePath(lang, '/skills'), label: tt(lang, 'nav.skills') },
     { href: localePath(lang, '/courses'), label: tt(lang, 'nav.courses') },
+    { href: localePath(lang, '/quizzes'), label: lang === 'hi' ? 'क्विज़' : 'Quizzes' },
+    { href: localePath(lang, '/skills'), label: tt(lang, 'nav.skills') },
     { href: localePath(lang, '/pdf-store'), label: tt(lang, 'nav.pdfStore') },
     { href: localePath(lang, '/centres'), label: tt(lang, 'nav.centres') },
     { href: localePath(lang, '/books'), label: tt(lang, 'nav.books') },

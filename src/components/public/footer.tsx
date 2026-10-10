@@ -32,8 +32,9 @@ export default async function Footer({ lang = 'en' }: FooterProps) {
     {
       title: tt(lang, 'footer.learn'),
       links: [
-        { href: localePath(lang, '/skills'), label: tt(lang, 'footer.allSkills') },
         { href: localePath(lang, '/courses'), label: tt(lang, 'nav.courses') },
+        { href: localePath(lang, '/quizzes'), label: lang === 'hi' ? 'क्विज़' : 'Quizzes' },
+        { href: localePath(lang, '/skills'), label: tt(lang, 'footer.allSkills') },
         { href: localePath(lang, '/pdf-store'), label: tt(lang, 'nav.pdfStore') },
         { href: localePath(lang, '/centres'), label: tt(lang, 'nav.centres') },
         { href: localePath(lang, '/books'), label: tt(lang, 'nav.books') },

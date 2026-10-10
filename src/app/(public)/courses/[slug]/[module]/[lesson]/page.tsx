@@ -19,6 +19,8 @@ import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { safeFetch } from '@/lib/safe-fetch'
 import { sanitizeHtml } from '@/lib/sanitize-html'
+import { getLocale, localePath } from '@/lib/i18n/locale'
+import { t as tt } from '@/lib/i18n/dictionary'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Clock } from 'lucide-react'
@@ -27,10 +29,11 @@ interface PageProps {
   params: Promise<{ slug: string; module: string; lesson: string }>
 }
 
-/** Generate SEO metadata for the lesson page (resilient to data errors). */
+/** Generate SEO metadata for the lesson page (resilient + locale-aware). */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug, lesson } = await params
-  const res = await safeFetch(() => getPublishedLessonBySlug(slug, lesson, 'en'))
+  const lang = await getLocale()
+  const res = await safeFetch(() => getPublishedLessonBySlug(slug, lesson, lang))
   const t = res?.data?.translation
 
   if (!t) return { title: 'Lesson not found' }
@@ -59,6 +62,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 export default async function LessonPage({ params }: PageProps) {
   const { slug, lesson } = await params
+  const lang = await getLocale()
 
   // Fetch resiliently: a throw here (e.g. Supabase env vars not yet set on a
   // fresh deploy) renders a friendly fallback instead of a 500. A genuine
@@ -68,8 +72,8 @@ export default async function LessonPage({ params }: PageProps) {
   let unavailable = false
   try {
     ;[lessonResult, courseResult] = await Promise.all([
-      getPublishedLessonBySlug(slug, lesson, 'en'),
-      getPublishedCourseBySlug(slug, 'en'),
+      getPublishedLessonBySlug(slug, lesson, lang),
+      getPublishedCourseBySlug(slug, lang),
     ])
   } catch {
     unavailable = true
@@ -152,13 +156,13 @@ export default async function LessonPage({ params }: PageProps) {
             modules={sidebarModules}
           />
 
-          <div className="container mx-auto px-4 py-6 max-w-4xl">
+          <div className="px-4 sm:px-6 lg:px-10 xl:px-14 py-6 max-w-5xl">
             {/* Breadcrumbs */}
             <Breadcrumbs
               items={[
-                { label: 'Home', href: '/' },
-                { label: 'Courses', href: '/courses' },
-                { label: courseT?.title ?? course.slug, href: `/courses/${course.slug}` },
+                { label: tt(lang, 'breadcrumb.home'), href: localePath(lang, '/') },
+                { label: tt(lang, 'breadcrumb.courses'), href: localePath(lang, '/courses') },
+                { label: courseT?.title ?? course.slug, href: localePath(lang, `/courses/${course.slug}`) },
                 { label: modT?.title ?? mod.slug },
                 { label: translation.title },
               ]}
@@ -185,8 +189,8 @@ export default async function LessonPage({ params }: PageProps) {
                     }
                   : null
               }
-              currentTitle={translation.title}
               position="top"
+              lang={lang}
               className="mt-4"
             />
 
@@ -196,7 +200,7 @@ export default async function LessonPage({ params }: PageProps) {
                 {lessonData.duration_minutes && (
                   <Badge variant="secondary" className="gap-1">
                     <Clock className="h-3 w-3" />
-                    {lessonData.duration_minutes} min read
+                    {lessonData.duration_minutes} {tt(lang, 'lesson.minRead')}
                   </Badge>
                 )}
                 <Badge variant="outline" className="capitalize">
@@ -262,6 +266,7 @@ export default async function LessonPage({ params }: PageProps) {
                   : null
               }
               position="bottom"
+              lang={lang}
             />
           </div>
         </main>

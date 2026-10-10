@@ -1714,3 +1714,71 @@ Stage Summary:
 - Search: 6 entity types (courses, lessons, questions, skills, centres, PDFs).
 - Speed analysis doc created for future optimization work.
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: WORLDCLASS-FIXES
+Agent: Z.ai Code (main)
+Task: Fix language switcher + WYSIWYG rendering + lesson design + quiz system
+
+Work Log:
+
+FIX 1 — Language switcher (Hindi content not loading):
+- Root cause: lesson page was hard-coding 'en' in getPublishedLessonBySlug + 
+  getPublishedCourseBySlug calls instead of using getLocale(). The page never
+  read the locale from the middleware header.
+- Fix: added `const lang = await getLocale()` and replaced all 'en' with `lang`
+  in the lesson page (both generateMetadata and the page body). Also localized
+  breadcrumbs ("Home" → tt(lang, 'breadcrumb.home')) and the "min read" badge.
+
+FIX 2a — Previous/Next buttons redesign:
+- Removed lesson names from the buttons — now only "Previous" / "Next" text.
+- Locale-aware: "पिछला" / "अगला" in Hindi.
+- Cleaner layout: buttons on left/right, optional "Course" link in center (bottom only).
+- Removed the 3-column layout with current title in center.
+
+FIX 2b — Lesson page padding:
+- Changed `container mx-auto px-4 py-6 max-w-4xl` → `px-4 sm:px-6 lg:px-10 xl:px-14 py-6 max-w-5xl`
+- Content now uses wider area (max-w-5xl = 1024px vs 896px) with less padding.
+- On large screens, content starts closer to the sidebar.
+
+FIX 2c — WYSIWYG content showing as plain text:
+- Root cause: @tailwindcss/typography plugin was NOT installed. The `prose` class
+  in the lesson page's <article> had no corresponding CSS — Tailwind didn't know
+  how to style h2/p/ul/table/blockquote inside `.prose`.
+- Fix: installed @tailwindcss/typography plugin, added `@plugin "@tailwindcss/typography";`
+  to globals.css (Tailwind CSS 4 syntax).
+- Verified: lesson page now renders h2, table, ul, blockquote with proper styling.
+
+FIX 3 — Quiz system:
+- New quiz listing service (src/lib/content/quiz-service.ts): listPublishedQuizzes,
+  getRelatedQuizzes, getLatestQuizzes, getTrendingQuizzes, getNextLessonQuiz.
+- New /quizzes index page: lists all published quizzes with course context,
+  question count, passing score, and links to play. SEO-optimized (title, description,
+  keywords, hreflang, canonical). Locale-aware.
+- Updated /quiz/[slug] play page: 
+  • Locale-aware (uses getLocale() instead of hard-coded 'en')
+  • Related Quizzes section (same course)
+  • Latest Quizzes section
+  • Trending Quizzes section
+  • "Next quiz" card (shows the next lesson's quiz after completion)
+  • SEO metadata (per-language title, description, hreflang)
+  • Fixed the QuizCircle import bug (was crashing on empty quizzes)
+  • "View all quizzes" link at bottom
+- Added "Quizzes" link to header nav + footer (between Courses and Skills)
+- Added /quizzes to sitemap static pages + quiz detail pages to dynamic sitemap
+
+Verification:
+- Lint: 0 errors, 0 warnings.
+- All routes 200: /, /hi, /quizzes, /hi/quizzes, /quiz/[slug], lesson pages (EN + HI).
+- WYSIWYG: h2, table, ul, blockquote all render with prose styling.
+- Previous/Next: only "Previous"/"Next" text, no lesson names.
+- Quizzes page: "All Quizzes" heading + "Play quiz" links present.
+- Lesson page: Hindi content loads correctly (पावरपॉइंट क्या है, मुख्य फ़ीचर).
+
+Stage Summary:
+- Language switcher: lesson page now locale-aware (was hard-coded 'en').
+- WYSIWYG: @tailwindcss/typography installed → content renders with proper formatting.
+- Lesson design: cleaner Previous/Next, wider content area, less padding.
+- Quiz system: dedicated /quizzes index page + quiz play page with Related/Latest/
+  Trending sections + next quiz option + SEO + header/footer links.
+- All changes committed and pushed to GitHub.

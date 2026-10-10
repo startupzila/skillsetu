@@ -26,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // NOTE: auth pages (/login, /register, …) and /dashboard are intentionally
   // excluded — this is a company-internal system and those routes must never
   // appear in search results (also blocked via robots.txt + X-Robots-Tag).
-  const staticPages = ['/', '/skills', '/courses', '/search', '/about', '/centres', '/books', '/store']
+  const staticPages = ['/', '/skills', '/courses', '/quizzes', '/search', '/about', '/centres', '/books', '/store']
   for (const path of staticPages) {
     entries.push({
       url: `${siteUrl}${path}`,
@@ -96,6 +96,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           priority: 0.6,
         })
       }
+    }
+
+    // Published quizzes
+    const { data: quizzes } = await supabase
+      .from('quizzes')
+      .select('slug, published_at')
+      .eq('status', 'published')
+
+    for (const quiz of quizzes ?? []) {
+      out.push({
+        url: `${siteUrl}/quiz/${quiz.slug}`,
+        lastModified: new Date(quiz.published_at ?? new Date()),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      })
     }
 
     return out
