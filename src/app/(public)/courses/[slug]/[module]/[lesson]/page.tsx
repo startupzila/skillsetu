@@ -127,10 +127,10 @@ export default async function LessonPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen">
-      {/* w3schools-style: fixed sidebar on desktop, hidden on mobile */}
+      {/* w3schools-style: fixed sidebar on desktop, sticky hamburger bar on mobile */}
       <div className="lg:flex">
-        {/* Left sidebar — desktop only (fixed) */}
-        <aside className="hidden lg:block w-64 shrink-0 border-r bg-background sticky top-16 h-[calc(100vh-4rem)] overflow-hidden">
+        {/* Left sidebar — desktop only (sticky, scrolls independently) */}
+        <aside className="hidden lg:block w-64 shrink-0 border-r bg-background sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
           <CourseSidebar
             courseSlug={course.slug}
             moduleSlug={mod.slug}
@@ -143,18 +143,16 @@ export default async function LessonPage({ params }: PageProps) {
 
         {/* Main content */}
         <main className="flex-1 min-w-0">
-          <div className="container mx-auto px-4 py-6 max-w-4xl">
-            {/* Mobile chapters toggle */}
-            <div className="lg:hidden mb-4">
-              <MobileCourseNav
-                courseSlug={course.slug}
-                moduleSlug={mod.slug}
-                lessonSlug={lessonData.slug}
-                courseTitle={courseT?.title ?? course.slug}
-                modules={sidebarModules}
-              />
-            </div>
+          {/* Mobile sticky chapter-menu bar (always accessible while scrolling) */}
+          <MobileCourseNav
+            courseSlug={course.slug}
+            moduleSlug={mod.slug}
+            lessonSlug={lessonData.slug}
+            courseTitle={courseT?.title ?? course.slug}
+            modules={sidebarModules}
+          />
 
+          <div className="container mx-auto px-4 py-6 max-w-4xl">
             {/* Breadcrumbs */}
             <Breadcrumbs
               items={[

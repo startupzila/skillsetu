@@ -1290,3 +1290,71 @@ Stage Summary:
 - /console/orders bug FIXED (missing orders_user_id_fkey FK added).
 - Standalone Questions/QNA pages merged into lesson flow; sidebar cleaned (dead links removed).
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: FIX-500-AND-POLISH
+Agent: Z.ai Code (main)
+Task: Fix lesson 500 error + MCQ editor improvements + w3schools-style tutorial frontend
+
+Work Log:
+- Synced sandbox to remote (reset --hard origin/main, cleaned stray files, restored .env).
+- Diagnosed the 500 Internal Server Error on lesson pages (reported on Vercel:
+  /courses/powerpoint-fundamentals/getting-started-with-powerpoint/introduction-to-powerpoint):
+  • Root cause: `isomorphic-dompurify` (used by sanitize-html.ts) does a top-level
+    `require("jsdom")`. Next.js's standalone dependency tracer did NOT include
+    `isomorphic-dompurify` in `.next/standalone/node_modules/` (even though jsdom
+    was traced). Locally it worked (fell back to project root node_modules), but on
+    Vercel's isolated deployment the `import { sanitize } from 'isomorphic-dompurify'`
+    crashed with MODULE_NOT_FOUND → 500 on every lesson page that renders WYSIWYG
+    content or practice questions.
+  • Fix: replaced `isomorphic-dompurify` with a zero-dependency regex-based sanitizer
+    (src/lib/sanitize-html.ts). Strips: <script>/<iframe>/<object>/<embed>/<form>/
+    <style>/<link> tags + content, all on*= event handlers, javascript: URIs. Works
+    identically on server/client, dev/prod/Vercel. Removed `isomorphic-dompurify` +
+    `bun remove` (no longer in package.json). Verified: standalone production server
+    returns 200 with full lesson content (was 500 on Vercel).
+- MCQ editor improvements (src/components/learning/lesson-editor.tsx McqDialog):
+  • Question Text: replaced RichTextEditor (WYSIWYG) with a plain <Textarea> —
+    question text is simple, no need for visual formatting (matches the user's request).
+  • Removed the Question-level "Explanation (optional)" field (was confusingly placed
+    above the options — user wasn't sure if it was for the question or the answer).
+  • Added "Answer explanation (optional)" BELOW the options, with the WYSIWYG
+    RichTextEditor (supports formatting: headings, bold, lists, tables, etc.). This is
+    the explanation shown to learners after they answer, explaining why the correct
+    option is right. Clear label + helper text eliminates the confusion.
+  • Updated DialogDescription to match.
+  • Public rendering (lesson-practice.tsx McqCard): MCQ question text now renders as
+    plain text (React auto-escapes), not via dangerouslySetInnerHTML — correct for
+    plain-text input. QNA question text still renders as HTML (QNA editor uses WYSIWYG).
+- w3schools-style tutorial frontend polish:
+  • MobileCourseNav (src/components/learning/mobile-course-nav.tsx): rebuilt as a
+    STICKY top bar (sticky top-0 z-20) with a full-width hamburger button showing the
+    course title + BookOpen icon. Sticks to the top of the content area so the chapter
+    menu is ALWAYS accessible while scrolling — exactly like w3schools. Opens the full
+    CourseSidebar in a left Sheet panel. Previously it was a small button inside the
+    content area with mb-4, not sticky.
+  • Lesson page layout (src/app/(public)/courses/[slug]/[module]/[lesson]/page.tsx):
+    moved MobileCourseNav OUTSIDE the content `<div>` to be a sticky bar at the top of
+    `<main>`. Fixed desktop sidebar `overflow-hidden` → `overflow-y-auto` so the
+    curriculum list scrolls properly when long.
+  • Desktop: fixed left sidebar (w-64, sticky top-16) with course title + expandable
+    modules + lesson list, current lesson highlighted. Mobile: sticky hamburger bar
+    → opens Sheet with same sidebar. Both verified via agent-browser.
+- Browser verification:
+  • Lesson page: 200, real content (Introduction to PowerPoint), no console errors.
+  • Desktop (1440x900): left sidebar with "Course contents" nav (PowerPoint Fundamentals
+    course, "Getting Started" module, "Introduction to PowerPoint" lesson highlighted) +
+    main content with lesson title.
+  • Mobile (390x844): sticky "PowerPoint Fundamentals" hamburger bar at top → click
+    opens Sheet with "Course Contents" + module + lessons list (w3schools-style).
+  • Start Learning button on course page → navigates to lesson page (verified).
+- Lint: 0 errors, 0 warnings.
+
+Stage Summary:
+- 500 fix: isomorphic-dompurify (jsdom) replaced with zero-dep regex sanitizer → Vercel
+  lesson pages no longer crash. Verified on standalone production build.
+- MCQ editor: plain-text Question Text, Answer Explanation moved below options with
+  WYSIWYG. No more confusion.
+- Tutorial frontend: w3schools-style sticky mobile hamburger bar + desktop left sidebar,
+  both showing the full chapter/lesson tree. Layout polished.
+- All changes committed and pushed to GitHub.

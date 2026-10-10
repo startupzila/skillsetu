@@ -123,9 +123,7 @@ function McqCard({ question, index }: { question: LessonQuestionData; index: num
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-base font-semibold leading-snug flex-1">
             <span className="text-muted-foreground mr-2">Q{index}.</span>
-            <span
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(t.question_text) }}
-            />
+            <span>{t.question_text}</span>
           </CardTitle>
           <div className="flex items-center gap-1.5 shrink-0">
             <Badge variant="outline" className="text-xs">{TYPE_LABELS[question.question_type]}</Badge>

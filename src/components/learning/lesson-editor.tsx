@@ -1050,7 +1050,7 @@ function McqDialog({
           </DialogTitle>
           <DialogDescription>
             {editing
-              ? 'Update the question text, explanation, and options.'
+              ? 'Update the question text, options, and answer explanation.'
               : 'Create a new multiple-choice question attached to this lesson.'}
           </DialogDescription>
         </DialogHeader>
@@ -1077,21 +1077,12 @@ function McqDialog({
 
           <div className="space-y-2">
             <Label>Question text</Label>
-            <RichTextEditor
+            <Textarea
               value={questionText}
-              onChange={setQuestionText}
+              onChange={(e) => setQuestionText(e.target.value)}
               placeholder="Write the question prompt…"
-              minHeight={140}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Explanation (optional)</Label>
-            <RichTextEditor
-              value={explanation}
-              onChange={setExplanation}
-              placeholder="Shown after the learner answers…"
-              minHeight={100}
+              className="min-h-[80px] resize-y"
+              disabled={isPending}
             />
           </div>
 
@@ -1161,6 +1152,20 @@ function McqDialog({
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Answer explanation (optional)</Label>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Shown after the learner answers — explain why the correct option
+              is right (supports formatting).
+            </p>
+            <RichTextEditor
+              value={explanation}
+              onChange={setExplanation}
+              placeholder="Explain the correct answer…"
+              minHeight={100}
+            />
           </div>
         </div>
 
