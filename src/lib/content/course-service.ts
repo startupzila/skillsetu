@@ -125,7 +125,8 @@ export async function getPublishedCourseBySlug(
       default_language, published_at, last_reviewed_at, next_review_at,
       translations:course_translations(
         id, language_code, title, short_description, description,
-        learning_outcomes, prerequisites, target_audience, status
+        learning_outcomes, prerequisites, target_audience, status,
+        seo_title, seo_description, seo_keywords, seo_faqs, seo_intro_paragraph
       )
       `,
     )

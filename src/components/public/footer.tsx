@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { listFooterPages } from '@/lib/content/pages-service'
 import { safeFetchOr } from '@/lib/safe-fetch'
+import { t as tt, type Lang } from '@/lib/i18n/dictionary'
+import { localePath } from '@/lib/i18n/locale-path'
 
 interface FooterProps {
   lang?: 'en' | 'hi'
@@ -28,22 +30,22 @@ export default async function Footer({ lang = 'en' }: FooterProps) {
 
   const sections = [
     {
-      title: lang === 'hi' ? 'सीखें' : 'Learn',
+      title: tt(lang, 'footer.learn'),
       links: [
-        { href: '/skills', label: lang === 'hi' ? 'सभी स्किल्स' : 'All Skills' },
-        { href: '/courses', label: lang === 'hi' ? 'कोर्स' : 'Courses' },
-        { href: '/pdf-store', label: lang === 'hi' ? 'PDF स्टोर' : 'PDF Store' },
-        { href: '/centres', label: lang === 'hi' ? 'सेंटर' : 'Centres' },
-        { href: '/books', label: lang === 'hi' ? 'किताबें' : 'Books' },
+        { href: localePath(lang, '/skills'), label: tt(lang, 'footer.allSkills') },
+        { href: localePath(lang, '/courses'), label: tt(lang, 'nav.courses') },
+        { href: localePath(lang, '/pdf-store'), label: tt(lang, 'nav.pdfStore') },
+        { href: localePath(lang, '/centres'), label: tt(lang, 'nav.centres') },
+        { href: localePath(lang, '/books'), label: tt(lang, 'nav.books') },
       ],
     },
     {
-      title: lang === 'hi' ? 'कंपनी' : 'Company',
-      links: companyPages.map((p) => ({ href: `/${p.slug}`, label: p.title })),
+      title: tt(lang, 'footer.company'),
+      links: companyPages.map((p) => ({ href: localePath(lang, `/${p.slug}`), label: p.title })),
     },
     {
-      title: lang === 'hi' ? 'कानूनी' : 'Legal',
-      links: legalPages.map((p) => ({ href: `/${p.slug}`, label: p.title })),
+      title: tt(lang, 'footer.legal'),
+      links: legalPages.map((p) => ({ href: localePath(lang, `/${p.slug}`), label: p.title })),
     },
   ]
 
@@ -53,13 +55,11 @@ export default async function Footer({ lang = 'en' }: FooterProps) {
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
           {/* Brand */}
           <div className="space-y-3">
-            <Link href="/" className="text-xl font-bold">
+            <Link href={localePath(lang, '/')} className="text-xl font-bold">
               Mio<span className="text-primary">Demy</span>
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs">
-              {lang === 'hi'
-                ? 'अपनी भाषा में व्यावहारिक स्किल्स सीखें।'
-                : 'Learn practical skills in your language.'}
+              {tt(lang, 'footer.tagline')}
             </p>
           </div>
 
@@ -86,10 +86,10 @@ export default async function Footer({ lang = 'en' }: FooterProps) {
         {/* Bottom bar */}
         <div className="mt-10 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            © {year} MioDemy. {lang === 'hi' ? 'सर्वाधिकार सुरक्षित।' : 'All rights reserved.'}
+            © {year} MioDemy. {tt(lang, 'footer.rights')}
           </p>
           <p className="text-xs text-muted-foreground">
-            {lang === 'hi' ? 'सीखें → अभ्यास → परीक्षण → प्रगति' : 'Discover → Learn → Practice → Test → Track'}
+            {tt(lang, 'footer.flow')}
           </p>
         </div>
       </div>

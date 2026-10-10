@@ -8,6 +8,8 @@ import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/s
 import { SearchBox } from './search-box'
 import { LanguageSwitcher } from './language-switcher'
 import { ThemeToggle } from './theme-toggle'
+import { t as tt, type Lang } from '@/lib/i18n/dictionary'
+import { localePath } from '@/lib/i18n/locale-path'
 import type { AuthSession } from '@/lib/auth'
 
 interface HeaderProps {
@@ -26,11 +28,11 @@ export function Header({ session, lang = 'en' }: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const navLinks = [
-    { href: '/skills', label: lang === 'hi' ? 'स्किल्स' : 'Skills' },
-    { href: '/courses', label: lang === 'hi' ? 'कोर्स' : 'Courses' },
-    { href: '/pdf-store', label: lang === 'hi' ? 'PDF स्टोर' : 'PDF Store' },
-    { href: '/centres', label: lang === 'hi' ? 'सेंटर' : 'Centres' },
-    { href: '/books', label: lang === 'hi' ? 'किताबें' : 'Books' },
+    { href: localePath(lang, '/skills'), label: tt(lang, 'nav.skills') },
+    { href: localePath(lang, '/courses'), label: tt(lang, 'nav.courses') },
+    { href: localePath(lang, '/pdf-store'), label: tt(lang, 'nav.pdfStore') },
+    { href: localePath(lang, '/centres'), label: tt(lang, 'nav.centres') },
+    { href: localePath(lang, '/books'), label: tt(lang, 'nav.books') },
   ]
 
   return (
@@ -65,24 +67,24 @@ export function Header({ session, lang = 'en' }: HeaderProps) {
             {session ? (
               <>
                 <Button asChild variant="ghost" size="sm">
-                  <Link href="/dashboard">Dashboard</Link>
+                  <Link href="/dashboard">{tt(lang, 'auth.dashboard')}</Link>
                 </Button>
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/console">Console</Link>
+                  <Link href="/console">{tt(lang, 'auth.console')}</Link>
                 </Button>
                 <form action="/api/auth/logout" method="post">
                   <Button type="submit" size="sm">
-                    Sign out
+                    {tt(lang, 'auth.signOut')}
                   </Button>
                 </form>
               </>
             ) : (
               <>
                 <Button asChild variant="ghost" size="sm">
-                  <Link href="/login">Sign in</Link>
+                  <Link href="/login">{tt(lang, 'auth.signIn')}</Link>
                 </Button>
                 <Button asChild size="sm">
-                  <Link href="/register">Sign up</Link>
+                  <Link href="/register">{tt(lang, 'auth.signUp')}</Link>
                 </Button>
               </>
             )}

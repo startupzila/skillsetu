@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requirePermission } from '@/lib/auth'
 import { recordAudit } from '@/lib/auth/audit'
+import { generateCourseSeo } from '@/lib/templates/seo-templates'
 
 /**
  * Admin content service — CRUD operations for courses, modules, lessons.
@@ -59,7 +60,8 @@ export async function adminGetCourse(courseId: string) {
     .from('courses')
     .select(
       `id, slug, status, difficulty, estimated_duration, default_language, published_at,
-       translations:course_translations(language_code, title, short_description, description, status)`,
+       translations:course_translations(language_code, title, short_description, description, status,
+         seo_title, seo_description, seo_keywords, seo_faqs, seo_intro_paragraph)`,
     )
     .eq('id', courseId)
     .single()
@@ -87,7 +89,15 @@ export async function adminCreateCourse(input: CourseInput) {
 
   if (courseErr) return { data: null, error: courseErr.message }
 
-  // Insert EN translation
+  // Auto-generate EN SEO metadata from the title + description
+  const seo = generateCourseSeo(
+    input.title,
+    input.short_description,
+    input.difficulty,
+    'en',
+  )
+
+  // Insert EN translation (with auto-generated SEO fields)
   const { error: transErr } = await admin.from('course_translations').insert({
     course_id: course.id,
     language_code: input.language_code ?? 'en',
@@ -98,6 +108,11 @@ export async function adminCreateCourse(input: CourseInput) {
     prerequisites: input.prerequisites ?? null,
     target_audience: input.target_audience ?? null,
     status: 'draft',
+    seo_title: seo.seo_title,
+    seo_description: seo.seo_description,
+    seo_keywords: seo.seo_keywords,
+    seo_faqs: seo.seo_faqs,
+    seo_intro_paragraph: seo.seo_intro_paragraph,
   })
 
   if (transErr) return { data: null, error: transErr.message }
@@ -123,7 +138,7 @@ export async function adminUpdateCourse(courseId: string, updates: Record<string
   return { data, error: null }
 }
 
-/** Update a course's EN translation (title, descriptions, outcomes, …). */
+/** Update a course translation (title, descriptions, outcomes, SEO, …). */
 export async function adminUpdateCourseTranslation(
   courseId: string,
   language: string,
@@ -135,12 +150,18 @@ export async function adminUpdateCourseTranslation(
     prerequisites?: string[] | null
     target_audience?: string[] | null
     status?: string
+    seo_title?: string | null
+    seo_description?: string | null
+    seo_keywords?: string[] | null
+    seo_faqs?: Array<{ q: string; a: string }> | null
+    seo_intro_paragraph?: string | null
   },
 ) {
   await requirePermission('course.update')
   const admin = createAdminClient()
 
-  const { data, error } = await admin
+  // Try update first
+  const { data: updated, error: updErr } = await admin
     .from('course_translations')
     .update(updates)
     .eq('course_id', courseId)
@@ -148,12 +169,96 @@ export async function adminUpdateCourseTranslation(
     .select()
     .single()
 
+  if (updErr) {
+    // Row doesn't exist yet → create it (upsert behaviour)
+    // Fetch course difficulty for SEO generation
+    const { data: course } = await admin
+      .from('courses')
+      .select('difficulty')
+      .eq('id', courseId)
+      .single()
+
+    const title = updates.title ?? ''
+    const seo = title
+      ? generateCourseSeo(title, updates.short_description, course?.difficulty, language as 'en' | 'hi')
+      : null
+
+    const { data: inserted, error: insErr } = await admin.from('course_translations').insert({
+      course_id: courseId,
+      language_code: language,
+      title: updates.title ?? '',
+      short_description: updates.short_description ?? null,
+      description: updates.description ?? null,
+      learning_outcomes: updates.learning_outcomes ?? null,
+      prerequisites: updates.prerequisites ?? null,
+      target_audience: updates.target_audience ?? null,
+      status: 'draft',
+      ...(seo ? {
+        seo_title: seo.seo_title,
+        seo_description: seo.seo_description,
+        seo_keywords: seo.seo_keywords,
+        seo_faqs: seo.seo_faqs,
+        seo_intro_paragraph: seo.seo_intro_paragraph,
+      } : {}),
+      ...updates,
+    }).select().single()
+
+    if (insErr) return { data: null, error: insErr.message }
+    await recordAudit({ action: 'course.update', entityType: 'course', entityId: courseId })
+    return { data: inserted, error: null }
+  }
+
+  await recordAudit({ action: 'course.update', entityType: 'course', entityId: courseId })
+  return { data: updated, error: null }
+}
+
+/** Create a new translation row for an existing course (e.g. add Hindi). */
+export async function adminCreateCourseTranslation(
+  courseId: string,
+  language: string,
+  input: {
+    title: string
+    short_description?: string | null
+    description?: string | null
+  },
+) {
+  await requirePermission('course.update')
+  const admin = createAdminClient()
+
+  // Fetch course difficulty for SEO generation
+  const { data: course } = await admin
+    .from('courses')
+    .select('difficulty')
+    .eq('id', courseId)
+    .single()
+
+  const seo = generateCourseSeo(
+    input.title,
+    input.short_description,
+    course?.difficulty,
+    language as 'en' | 'hi',
+  )
+
+  const { data, error } = await admin.from('course_translations').insert({
+    course_id: courseId,
+    language_code: language,
+    title: input.title,
+    short_description: input.short_description ?? null,
+    description: input.description ?? null,
+    status: 'draft',
+    seo_title: seo.seo_title,
+    seo_description: seo.seo_description,
+    seo_keywords: seo.seo_keywords,
+    seo_faqs: seo.seo_faqs,
+    seo_intro_paragraph: seo.seo_intro_paragraph,
+  }).select().single()
+
   if (error) return { data: null, error: error.message }
   await recordAudit({ action: 'course.update', entityType: 'course', entityId: courseId })
   return { data, error: null }
 }
 
-/** Publish a course. */
+/** Publish a course (and all its published-status translations). */
 export async function adminPublishCourse(courseId: string) {
   await requirePermission('course.publish')
   const admin = createAdminClient()
@@ -169,6 +274,14 @@ export async function adminPublishCourse(courseId: string) {
     .single()
 
   if (error) return { data: null, error: error.message }
+
+  // Publish all existing translations so they're visible (RLS hides drafts)
+  await admin
+    .from('course_translations')
+    .update({ status: 'published' })
+    .eq('course_id', courseId)
+    .not('status', 'eq', 'published')
+
   await recordAudit({ action: 'course.publish', entityType: 'course', entityId: courseId })
   return { data, error: null }
 }

@@ -105,3 +105,33 @@ export function JsonLdWebsite() {
     />
   )
 }
+
+/**
+ * JsonLdFaq — FAQPage structured data for rich search results.
+ *
+ * Renders a <script type="application/ld+json"> tag with schema.org/FAQPage
+ * data, enabling FAQ rich snippets in Google search results.
+ */
+export function JsonLdFaq({ faqs }: { faqs: Array<{ q: string; a: string }> }) {
+  if (!faqs || faqs.length === 0) return null
+
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.a,
+      },
+    })),
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  )
+}

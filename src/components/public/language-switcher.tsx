@@ -11,18 +11,32 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 /**
- * LanguageSwitcher — switches between EN and HI.
+ * LanguageSwitcher — switches between EN and HI by navigating to the
+ * localized URL.
  *
- * Uses a cookie (`miodemy-lang`) so server components can read the
- * preferred language. The current path is preserved (no redirect).
+ * English is the default (no prefix): `/courses/foo`
+ * Hindi gets a `/hi` prefix: `/hi/courses/foo`
+ *
+ * Also sets the `miodemy-lang` cookie for preference persistence.
  */
 export function LanguageSwitcher({ current = 'en' }: { current?: 'en' | 'hi' }) {
   const router = useRouter()
   const pathname = usePathname()
 
   function switchLang(lang: 'en' | 'hi') {
+    // Set cookie for preference persistence
     document.cookie = `miodemy-lang=${lang}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
-    router.refresh()
+
+    // Compute the new path: strip existing /hi prefix, then add if switching to hi
+    let newPath = pathname
+    if (newPath === '/hi' || newPath.startsWith('/hi/')) {
+      newPath = newPath.slice(3) || '/'
+    }
+    if (lang === 'hi') {
+      newPath = `/hi${newPath}`
+    }
+
+    router.push(newPath)
   }
 
   return (

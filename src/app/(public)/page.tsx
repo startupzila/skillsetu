@@ -5,21 +5,21 @@ import { JsonLdWebsite } from '@/components/seo/json-ld'
 import { TypingHeading } from '@/components/public/typing-heading'
 import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
 import { safeFetch } from '@/lib/safe-fetch'
+import { getLocale, localePath } from '@/lib/i18n/locale'
+import { t } from '@/lib/i18n/dictionary'
 import { BookOpen, GraduationCap, Languages, ArrowRight, Building2, Plus } from 'lucide-react'
 
 /**
  * MioDemy — homepage.
  *
- * Server component: fetches published courses + categories from Supabase.
- * Rendered inside the (public) layout which provides Header + Footer.
- *
- * Resilient: if the data source is unavailable (e.g. Supabase env vars not
- * configured yet on a fresh deploy), the page still renders the hero and
- * static marketing sections instead of throwing a server-side exception.
+ * Server component: fetches published courses + categories from Supabase,
+ * filtered by the current locale (detected from the URL via middleware).
+ * `/` → English, `/hi` → Hindi.
  */
 export default async function Home() {
-  const coursesRes = await safeFetch(() => listPublishedCourses('en'))
-  const categoriesRes = await safeFetch(() => listPublishedCategories('en'))
+  const lang = await getLocale()
+  const coursesRes = await safeFetch(() => listPublishedCourses(lang))
+  const categoriesRes = await safeFetch(() => listPublishedCategories(lang))
   const courses = coursesRes?.data ?? []
   const categories = categoriesRes?.data ?? []
 
@@ -31,25 +31,24 @@ export default async function Home() {
         <div className="container mx-auto px-4 py-16 text-center space-y-5">
           <TypingHeading />
           <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto">
-            Structured Tutorials, Examples, Practice, Quizzes &amp; Resources —
-            for Excel, Tally, Digital Marketing, AI tools and more.
+            {t(lang, 'hero.subtitle')}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Button asChild size="lg">
-              <Link href="/courses">
+              <Link href={localePath(lang, '/courses')}>
                 <BookOpen className="h-4 w-4 mr-2" />
-                Browse courses
+                {t(lang, 'hero.browseCourses')}
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link href="/register">
                 <GraduationCap className="h-4 w-4 mr-2" />
-                Create free account
+                {t(lang, 'hero.createAccount')}
               </Link>
             </Button>
           </div>
           <p className="text-sm text-muted-foreground pt-3">
-            Discover → Learn → Practice → Test → Apply → Track Progress
+            {t(lang, 'hero.flow')}
           </p>
         </div>
       </section>
@@ -59,34 +58,34 @@ export default async function Home() {
         <section className="container mx-auto px-4 py-16">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">Explore by Category</h2>
+              <h2 className="text-3xl font-bold tracking-tight">{t(lang, 'home.exploreByCategory')}</h2>
               <p className="text-muted-foreground mt-1">
-                Find courses organised by skill area
+                {t(lang, 'home.exploreByCategorySub')}
               </p>
             </div>
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/skills">
-                View all <ArrowRight className="h-4 w-4 ml-1" />
+              <Link href={localePath(lang, '/skills')}>
+                {t(lang, 'home.viewAll')} <ArrowRight className="h-4 w-4 ml-1" />
               </Link>
             </Button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map((cat) => {
-              const t = cat.translations[0]
+              const ct = cat.translations[0]
               return (
                 <Link
                   key={cat.id}
-                  href={`/skills/${cat.slug}`}
+                  href={localePath(lang, `/skills/${cat.slug}`)}
                   className="group rounded-lg border p-6 hover:border-primary/30 hover:shadow-sm transition-all"
                 >
                   <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                    {t?.name ?? cat.slug}
+                    {ct?.name ?? cat.slug}
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {t?.description ?? ''}
+                    {ct?.description ?? ''}
                   </p>
                   <span className="text-sm text-primary font-medium mt-3 inline-flex items-center gap-1">
-                    Explore <ArrowRight className="h-3.5 w-3.5" />
+                    {lang === 'hi' ? 'देखें' : 'Explore'} <ArrowRight className="h-3.5 w-3.5" />
                   </span>
                 </Link>
               )
@@ -100,20 +99,20 @@ export default async function Home() {
         <section className="container mx-auto px-4 py-16">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">Featured Courses</h2>
+              <h2 className="text-3xl font-bold tracking-tight">{t(lang, 'home.featuredCourses')}</h2>
               <p className="text-muted-foreground mt-1">
-                Start learning with our curated skill courses
+                {t(lang, 'home.featuredCoursesSub')}
               </p>
             </div>
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/courses">
-                View all <ArrowRight className="h-4 w-4 ml-1" />
+              <Link href={localePath(lang, '/courses')}>
+                {t(lang, 'home.viewAll')} <ArrowRight className="h-4 w-4 ml-1" />
               </Link>
             </Button>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
-              <CourseCard key={course.id} course={course} />
+              <CourseCard key={course.id} course={course} lang={lang} />
             ))}
           </div>
         </section>
@@ -122,22 +121,22 @@ export default async function Home() {
       {/* Training Centres */}
       <section className="container mx-auto px-4 py-16">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold tracking-tight">Find Skill & Training Centres Near You</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{t(lang, 'home.findCentres')}</h2>
           <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
-            Browse verified skills and training institutes. Compare courses, fees, reviews, and admission details.
+            {t(lang, 'home.findCentresSub')}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button asChild size="lg">
-            <Link href="/centres">
+            <Link href={localePath(lang, '/centres')}>
               <Building2 className="h-4 w-4 mr-2" />
-              Browse Centres
+              {t(lang, 'home.browseCentres')}
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link href="/centres/register">
               <Plus className="h-4 w-4 mr-2" />
-              Register Your Centre
+              {t(lang, 'home.registerCentre')}
             </Link>
           </Button>
         </div>
@@ -147,27 +146,27 @@ export default async function Home() {
       <section className="border-t bg-muted/30">
         <div className="container mx-auto px-4 py-16">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight">Why MioDemy?</h2>
+            <h2 className="text-3xl font-bold tracking-tight">{t(lang, 'home.whyMioDemy')}</h2>
             <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
-              A learning experience designed for real outcomes
+              {t(lang, 'home.whyMioDemySub')}
             </p>
           </div>
           <div className="grid gap-8 md:grid-cols-3">
             {[
               {
                 icon: BookOpen,
-                title: 'Structured learning',
-                desc: 'Every course follows a clear path: concepts → examples → practice → assessment.',
+                title: t(lang, 'home.structuredLearning'),
+                desc: t(lang, 'home.structuredLearningDesc'),
               },
               {
                 icon: Languages,
-                title: 'Bilingual',
-                desc: 'Learn in English or Hindi. Switch languages anytime without losing your place.',
+                title: t(lang, 'home.bilingual'),
+                desc: t(lang, 'home.bilingualDesc'),
               },
               {
                 icon: GraduationCap,
-                title: 'Practice & test',
-                desc: 'Quizzes, mock tests and projects reinforce what you learn and track progress.',
+                title: t(lang, 'home.practiceTest'),
+                desc: t(lang, 'home.practiceTestDesc'),
               },
             ].map((feat) => (
               <div key={feat.title} className="text-center space-y-3">

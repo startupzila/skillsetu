@@ -3,6 +3,8 @@ import { Clock, BookOpen, ChevronRight, FileText } from 'lucide-react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import type { CourseWithTranslation } from '@/lib/content'
+import type { Lang } from '@/lib/i18n/dictionary'
+import { localePath } from '@/lib/i18n/locale-path'
 
 /**
  * CourseCard — displays a course in a grid/list.
@@ -17,9 +19,10 @@ import type { CourseWithTranslation } from '@/lib/content'
  */
 interface CourseCardProps {
   course: CourseWithTranslation
+  lang?: Lang
 }
 
-export function CourseCard({ course }: CourseCardProps) {
+export function CourseCard({ course, lang = 'en' }: CourseCardProps) {
   const translation = course.translations[0]
   const outcomes = translation?.learning_outcomes?.slice(0, 3) ?? []
 
@@ -27,7 +30,7 @@ export function CourseCard({ course }: CourseCardProps) {
     <Card className="h-full hover:shadow-md transition-all hover:border-primary/30 flex flex-col overflow-hidden">
       {/* Header + body: clickable link to the course page */}
       <Link
-        href={`/courses/${course.slug}`}
+        href={localePath(lang, `/courses/${course.slug}`)}
         className="group block flex-1"
         prefetch={false}
       >
@@ -70,14 +73,14 @@ export function CourseCard({ course }: CourseCardProps) {
 
       <CardFooter className="border-t pt-4 flex items-center justify-between">
         <Link
-          href={`/courses/${course.slug}`}
+          href={localePath(lang, `/courses/${course.slug}`)}
           className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
         >
           <BookOpen className="h-4 w-4" />
-          Start learning
+          {lang === 'hi' ? 'सीखना शुरू करें' : 'Start learning'}
         </Link>
         <Link
-          href={`/courses/${course.slug}/pdf`}
+          href={localePath(lang, `/courses/${course.slug}/pdf`)}
           className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
         >
           <FileText className="h-3.5 w-3.5" />

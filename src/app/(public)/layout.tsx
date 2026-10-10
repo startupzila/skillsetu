@@ -1,14 +1,15 @@
-import { headers } from 'next/headers'
 import { Header } from '@/components/public/header'
 import Footer from '@/components/public/footer'
 import { getSession } from '@/lib/auth'
+import { getLocale } from '@/lib/i18n/locale'
 
 /**
  * Public layout — wraps all public-facing pages with the shared
  * Header + Footer (sticky). Uses min-h-screen flex flex-col so the
  * footer sticks to the bottom when content is short.
  *
- * Reads the language preference from a cookie (set by LanguageSwitcher).
+ * The locale is detected from the URL via the middleware-set `x-locale`
+ * header: `/hi/*` → 'hi', everything else → 'en'.
  */
 export default async function PublicLayout({
   children,
@@ -16,12 +17,7 @@ export default async function PublicLayout({
   children: React.ReactNode
 }) {
   const session = await getSession().catch(() => null)
-
-  // Read language from cookie
-  const headerList = await headers()
-  const cookie = headerList.get('cookie') ?? ''
-  const langMatch = cookie.match(/miodemy-lang=(en|hi)/)
-  const lang = (langMatch?.[1] as 'en' | 'hi') ?? 'en'
+  const lang = await getLocale()
 
   return (
     <div className="min-h-screen flex flex-col">

@@ -44,9 +44,9 @@ export default function RegisterPage() {
         return
       }
 
-      // If session was created (email confirmation disabled), go to dashboard
+      // If session was created (email confirmation disabled), go to home
       if (data.session) {
-        router.push('/dashboard')
+        router.push('/')
         router.refresh()
       } else {
         setSuccess(true)

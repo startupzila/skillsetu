@@ -1358,3 +1358,86 @@ Stage Summary:
 - Tutorial frontend: w3schools-style sticky mobile hamburger bar + desktop left sidebar,
   both showing the full chapter/lesson tree. Layout polished.
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: I18N-SEO-REDIRECT
+Agent: Z.ai Code (main)
+Task: Fix login redirect + bilingual system (EN/HI) + per-language SEO auto-generation
+
+Work Log:
+
+TASK 1 — Login redirect fix:
+- Changed 4 locations that redirected to /dashboard → now redirect to / (home):
+  • login page (searchParams default '/dashboard' → '/')
+  • register page (router.push('/dashboard') → '/')
+  • auth callback route (next param default '/dashboard' → '/')
+  • middleware (logged-in users on /login|/register → / instead of /dashboard)
+
+TASK 2 — Bilingual system (English + Hindi):
+- URL strategy: middleware rewrite (NOT route duplication). /hi/* paths are rewritten
+  to /* internally with x-locale: hi header. English (default) has no prefix.
+  • /  → English homepage
+  • /hi → Hindi homepage
+  • /hi/courses/foo → Hindi course page (internally rewrites to /courses/foo)
+  • No files moved — zero route duplication.
+- New src/lib/i18n/dictionary.ts: 60+ UI strings in EN+HI, t(lang, key) helper.
+- New src/lib/i18n/locale.ts (server-only, uses next/headers): getLocale() reads
+  the x-locale header set by middleware.
+- New src/lib/i18n/locale-path.ts (client-safe pure functions): localePath() and
+  parseLocalePath() — no next/headers dependency, safe for client components.
+- Public layout: reads locale via getLocale() (was cookie-based, now URL-based).
+- Header + Footer: all labels now use t(lang, key) + localePath(lang, ...).
+- Language switcher: navigates to /hi/* URL (was: just set a cookie + refresh).
+- Home page: fetches courses/categories in the current locale, all labels localized.
+- Course card: accepts lang prop, links use localePath.
+- Console course editor: EN/HI language tabs (see below).
+
+TASK 3 — SEO auto-generation (per-language, both EN + HI):
+- DB migration 005 (db/migrations/005_seo_bilingual.sql) — APPLIED + verified:
+  • course_translations: seo_title, seo_description, seo_keywords TEXT[],
+    seo_faqs JSONB, seo_intro_paragraph TEXT
+  • lesson_translations: seo_title, seo_description
+- New src/lib/templates/seo-templates.ts: generateCourseSeo(title, shortDesc,
+  difficulty, lang) → returns { seo_title, seo_description, seo_keywords[14],
+  seo_faqs[5], seo_intro_paragraph }. Templates in both EN + HI covering:
+  "{title} Tutorial", "{title} Course", "{title} Free Tutorial",
+  "{title} Video Tutorial", etc. + 5 FAQs (Is it free? Available in Hindi?
+  Practice exercises? PDF notes? What level?).
+- adminCreateCourse: auto-generates EN SEO on creation.
+- adminCreateCourseTranslation: new function to add a HI translation row with
+  auto-generated HI SEO.
+- adminUpdateCourseTranslation: now upserts (creates the row if it doesn't exist,
+  so the HI tab's first save creates the translation).
+- adminPublishCourse: now publishes ALL translations (not just EN).
+- Backfilled SEO for 8 existing translations (4 courses × 2 languages).
+- Course page generateMetadata: uses per-language seo_title/seo_description/
+  seo_keywords + alternates.languages (hreflang) + canonical + openGraph.locale.
+- Course page body: new SEO section between PDF CTA and Related Courses:
+  • "About this course" heading + intro paragraph (keyword-rich)
+  • Keyword badges (14 keywords per language)
+  • FAQ section (5 Q&A cards per language)
+  • FAQPage JSON-LD (schema.org/FAQPage) for rich search results
+- Course page: all labels localized (Start learning, Course Info, What you'll
+  learn, Prerequisites, Related Courses, etc.).
+- Breadcrumbs: localized (Home, Courses → होम, कोर्स).
+
+Verification:
+- Lint: 0 errors, 0 warnings.
+- Routes: / 200, /hi 200, /courses/foo 200, /hi/courses/foo 200.
+- EN home: shows "Skills", "Courses", "Featured Courses", "Explore by Category".
+- HI home: shows "स्किल्स", "कोर्स देखें", "फीचर्ड कोर्स", "श्रेणी देखें".
+- EN course: <title>PowerPoint Fundamentals — Free Online Course & Tutorial</title>
+  + FAQPage JSON-LD + "About this course" + "Frequently Asked" + 14 keyword badges.
+- HI course: <title>पावरपॉइंट मूल बातें — मुफ्त ऑनलाइन कोर्स और ट्यूटोरियल</title>
+  + FAQPage JSON-LD + "इस कोर्स के बारे में" + "अक्सर पूछे" + Hindi keywords.
+
+Stage Summary:
+- Login redirects to home (/) not /dashboard.
+- Full bilingual URL system: /hi/* prefix via middleware rewrite, no route duplication.
+- Console course editor has EN + HI tabs; HI tab can create the translation row
+  (with auto-generated SEO) and edit it.
+- Per-language SEO: 5 new DB columns, auto-generated on course create/translation
+  create, rendered on the course page (intro + keywords + FAQs) + FAQPage JSON-LD.
+- UI i18n: 60+ strings in EN+HI dictionary; Header/Footer/Course page fully localized.
+- Language switcher navigates to /hi/* URL (not just cookie).
+- All changes committed and pushed to GitHub.

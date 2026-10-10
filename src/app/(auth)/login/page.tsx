@@ -31,7 +31,7 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') ?? '/dashboard'
+  const redirect = searchParams.get('redirect') ?? '/'
   const errorParam = searchParams.get('error')
 
   const [email, setEmail] = useState('')

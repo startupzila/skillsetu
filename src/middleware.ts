@@ -4,20 +4,16 @@ import { createServerClient } from '@supabase/ssr'
 /**
  * MioDemy — middleware (proxy).
  *
- * 1. Refreshes the Supabase session on every request (so server components
- *    see the latest auth state without waiting for a client-side refresh).
- * 2. Protects /console/* routes — redirects to /login if not authenticated.
- *    (Role-based checks happen in the console layout / route handlers,
- *    because they require DB lookups that middleware cannot do efficiently.)
- * 3. Sends `X-Robots-Tag: noindex, nofollow` on all internal / non-public
- *    paths (console, dashboard, api, auth) so search engines never crawl or
- *    index the company's internal system.
+ * 1. **Locale detection**: `/hi/*` paths are rewritten to `/*` internally with
+ *    an `x-locale: hi` header. English (default) has no prefix. This gives
+ *    Hindi proper URLs (`/hi/courses/foo`) without duplicating route files.
+ * 2. Refreshes the Supabase session on every request.
+ * 3. Protects /console/* routes — redirects to /login if not authenticated.
+ * 4. Sends `X-Robots-Tag: noindex, nofollow` on all internal / non-public
+ *    paths so search engines never crawl the company's internal system.
  *
- * RESILIENCE: if the Supabase env vars are not configured (e.g. during a
- * fresh deploy before env vars are wired up), the middleware no longer
- * crashes the entire site. It skips the Supabase-dependent redirect lookup
- * and session refresh, still protects /console/*, and lets public pages
- * render their own graceful fallbacks.
+ * RESILIENCE: if the Supabase env vars are not configured, the middleware
+ * skips Supabase-dependent logic but still does locale rewriting + auth gating.
  */
 
 const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email']
@@ -35,13 +31,36 @@ function isNoindexPath(pathname: string): boolean {
   return NOINDEX_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
 }
 
+/** Detect locale from the URL: `/hi/*` → 'hi', everything else → 'en'. */
+function detectLocale(pathname: string): { lang: 'en' | 'hi'; internalPath: string } {
+  if (pathname === '/hi' || pathname.startsWith('/hi/')) {
+    const internalPath = pathname.slice(3) || '/'
+    return { lang: 'hi', internalPath }
+  }
+  return { lang: 'en', internalPath: pathname }
+}
+
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({ request })
   const pathname = request.nextUrl.pathname
 
+  // ── Locale detection + URL rewrite ──
+  // `/hi/courses/foo` → rewritten to `/courses/foo` with `x-locale: hi` header.
+  // The browser URL stays `/hi/courses/foo`; Next.js renders the `/courses/foo`
+  // route but the page reads the locale from the header.
+  const { lang, internalPath } = detectLocale(pathname)
+
+  // Build the response — if it's a `/hi/*` path, rewrite internally
+  const response =
+    lang === 'hi'
+      ? NextResponse.rewrite(new URL(internalPath, request.url))
+      : NextResponse.next({ request })
+
+  // Stamp the locale so server components can read it via `headers().get('x-locale')`
+  response.headers.set('x-locale', lang)
+
   /** Stamp the noindex header on whatever response we end up returning. */
-  const withNoindex = (res: ReturnType<typeof NextResponse.next> | ReturnType<typeof NextResponse.redirect>) => {
-    if (isNoindexPath(pathname)) {
+  const withNoindex = (res: typeof response) => {
+    if (isNoindexPath(internalPath)) {
       res.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet')
     }
     return res
@@ -54,9 +73,9 @@ export async function middleware(request: NextRequest) {
   // site still loads (public pages render graceful fallbacks). We still
   // protect /console/* by redirecting to login.
   if (!supabaseUrl || !supabaseAnonKey) {
-    if (pathname.startsWith('/console')) {
+    if (internalPath.startsWith('/console')) {
       const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('redirect', pathname)
+      loginUrl.searchParams.set('redirect', internalPath)
       return withNoindex(NextResponse.redirect(loginUrl))
     }
     return withNoindex(response)
@@ -77,13 +96,13 @@ export async function middleware(request: NextRequest) {
 
   // ── Redirect manager (301/302) ──────────────────────────
   // Check if the path matches a redirect before anything else.
-  // Skip API routes and static assets.
-  if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
+  // Use the internal path (locale-stripped) for redirect matching.
+  if (!internalPath.startsWith('/api/') && !internalPath.startsWith('/_next/')) {
     try {
       const { data: redirect } = await supabase
         .from('redirects')
         .select('to_url, status_code')
-        .eq('from_path', pathname)
+        .eq('from_path', internalPath)
         .eq('is_active', true)
         .single()
 
@@ -112,15 +131,15 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protect /console/* — must be authenticated
-  if (pathname.startsWith('/console') && !user) {
+  if (internalPath.startsWith('/console') && !user) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
+    loginUrl.searchParams.set('redirect', internalPath)
     return withNoindex(NextResponse.redirect(loginUrl))
   }
 
-  // If already logged in, redirect away from auth pages
-  if (user && (pathname === '/login' || pathname === '/register')) {
-    return withNoindex(NextResponse.redirect(new URL('/dashboard', request.url)))
+  // If already logged in, redirect away from auth pages → home
+  if (user && (internalPath === '/login' || internalPath === '/register')) {
+    return withNoindex(NextResponse.redirect(new URL('/', request.url)))
   }
 
   return withNoindex(response)

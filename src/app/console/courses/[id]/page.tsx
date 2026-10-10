@@ -109,7 +109,7 @@ export default async function CourseEditorPage({ params }: PageProps) {
         </CardContent>
       </Card>
 
-      {/* Section 1: Course details editor */}
+      {/* Section 1: Course details editor (EN + HI language tabs) */}
       <CourseDetailsEditor
         courseId={course.id}
         initial={{
@@ -118,7 +118,7 @@ export default async function CourseEditorPage({ params }: PageProps) {
           estimated_duration: course.estimated_duration,
           default_language: course.default_language,
           status: course.status,
-          translation: (course.translations as { language_code: string; title: string; short_description: string; description: string; learning_outcomes: string[]; prerequisites: string[]; target_audience: string[] }[])?.find((t) => t.language_code === 'en') ?? null,
+          translations: (course.translations as { language_code: string; title: string; short_description: string; description: string; learning_outcomes: string[]; prerequisites: string[]; target_audience: string[]; status: string }[]) ?? [],
         }}
       />
 

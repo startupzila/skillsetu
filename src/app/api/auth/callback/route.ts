@@ -5,12 +5,12 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
  * GET /api/auth/callback
  *
  * Supabase Auth callback handler. Exchanges the `code` query param for a
- * session, then redirects to the `next` param (or /dashboard).
+ * session, then redirects to the `next` param (or / — home).
  */
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/dashboard'
+  const next = requestUrl.searchParams.get('next') ?? '/'
 
   if (code) {
     const supabase = await createServerSupabaseClient()
