@@ -73,7 +73,7 @@ function toTransState(t: TranslationData | undefined): TransState {
  * button that creates it (with auto-generated SEO).
  */
 export function CourseDetailsEditor({ courseId, initial }: CourseDetailsEditorProps) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true) // open by default so the EN/HI tabs are immediately visible
   const [isPending, startTransition] = useTransition()
   const { toast } = useToast()
 

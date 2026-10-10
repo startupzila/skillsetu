@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,10 +17,15 @@ import {
  * English is the default (no prefix): `/courses/foo`
  * Hindi gets a `/hi` prefix: `/hi/courses/foo`
  *
+ * Uses a HARD navigation (window.location.href) instead of router.push
+ * because the middleware rewrites /hi/* → /* internally — a soft navigation
+ * (router.push) sees the same internal path and doesn't re-render the layout,
+ * so the Header labels and the switcher's "current" tick don't update.
+ * A hard navigation guarantees a fresh server render of everything.
+ *
  * Also sets the `miodemy-lang` cookie for preference persistence.
  */
 export function LanguageSwitcher({ current = 'en' }: { current?: 'en' | 'hi' }) {
-  const router = useRouter()
   const pathname = usePathname()
 
   function switchLang(lang: 'en' | 'hi') {
@@ -36,7 +41,8 @@ export function LanguageSwitcher({ current = 'en' }: { current?: 'en' | 'hi' }) 
       newPath = `/hi${newPath}`
     }
 
-    router.push(newPath)
+    // Hard navigation — guarantees layout re-render + header + switcher tick update
+    window.location.href = newPath
   }
 
   return (

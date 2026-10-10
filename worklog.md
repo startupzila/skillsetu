@@ -1441,3 +1441,89 @@ Stage Summary:
 - UI i18n: 60+ strings in EN+HI dictionary; Header/Footer/Course page fully localized.
 - Language switcher navigates to /hi/* URL (not just cookie).
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: I18N-FIXES-AND-SEED
+Agent: Z.ai Code (main)
+Task: Fix language switcher + course name translations + verify editor tabs + seed PowerPoint course in EN+HI
+
+Work Log:
+
+FIX 1 — Language switcher smoothness:
+- Root cause: middleware rewrites /hi/* → /* internally. router.push('/hi/...') sees
+  the same internal path (/*) and doesn't re-render the layout → Header labels + the
+  switcher's "current" tick don't update. Only a full page refresh fixed it.
+- Fix: LanguageSwitcher now uses window.location.href (hard navigation) instead of
+  router.push. This forces a full server re-render: header, body, switcher tick all
+  update instantly. Cookie still set for preference persistence.
+- Verified: switching EN→HI shows URL /hi, button shows "HI", body shows Hindi labels
+  (स्किल्स, कोर्स देखें) — all instant, no refresh needed. Switching HI→EN also works.
+
+FIX 2 — Bad Hindi course names:
+- Root cause: seed data had literal translations ("Fundamentals" → "मूल बातें") which
+  are poor quality and confusing.
+- Fixed all 4 Hindi course names to use transliteration (keep the English term as-is
+  but written in Devanagari script):
+  • एक्सेल मूल बातें → एक्सेल फ़ंडामेंटल
+  • वर्ड मूल बातें → वर्ड फ़ंडामेंटल
+  • पावरपॉइंट मूल बातें → पावरपॉइंट फ़ंडामेंटल
+  • डिजिटल मार्केटिंग मूल बातें → डिजिटल मार्केटिंग बेसिक्स
+- Also improved the short_description for each.
+- Regenerated SEO (15 keywords + 5 FAQs + intro paragraph) for all 4 Hindi courses
+  so keywords use the proper transliterated title.
+
+FIX 3 — Course Editor EN/HI tabs visibility:
+- The tabs were already functional but hidden inside a collapsed "Course Details"
+  card (open=false by default).
+- Changed default state to open=true so the EN/HI tabs are immediately visible when
+  the page loads.
+- Verified via browser: tabs show "English" (selected) + "हिन्दी (Hindi)". Clicking
+  Hindi tab shows the HI translation form with "पावरपॉइंट फ़ंडामेंटल" title + Save button.
+  Clicking English tab shows EN form with "PowerPoint Fundamentals" title.
+
+FIX 4 — Course listing shows language status:
+- Console course listing (/console/courses) now shows EN + HI badges per course.
+  Green "HI ✓" if Hindi translation exists, gray "HI —" if not.
+
+TASK — PowerPoint Fundamentals full course (EN + HI):
+- Created 3 modules (Getting Started, Designing Slides, Animations and Transitions)
+  with EN + HI translations, all published.
+- Created 6 lessons (2 per module):
+  • Introduction to PowerPoint (with YouTube video)
+  • Creating Your First Presentation (with YouTube video)
+  • Working with Themes and Layouts
+  • Adding Text and Images
+  • Slide Transitions
+  • Animating Objects
+- Each lesson has:
+  • EN + HI title, summary, and long WYSIWYG content_html (headings, paragraphs,
+    bullet lists, numbered lists, tables, blockquotes, inline code).
+  • EN + HI MCQ (single_choice with 4 options, correct answer marked, WYSIWYG
+    explanation).
+  • EN + HI QNA (descriptive question with WYSIWYG model answer).
+  • All published (status=published, translation status=published).
+- Video URLs: 2 lessons have YouTube links (shown as embed on the public page).
+
+Verification:
+- Lint: 0 errors.
+- EN course page: shows all 3 modules + 6 lesson titles.
+- HI course page: shows all 3 Hindi module titles + 6 Hindi lesson titles.
+- EN lesson page: WYSIWYG content (What is PowerPoint?, Key Features, interface
+  table, etc.) + YouTube embed + Practice Questions (MCQ: "Which tab contains the
+  New Slide button?" + Check answer) + Review Questions (QNA: "List three main
+  areas of the PowerPoint interface" + Reveal model answer).
+- HI lesson page: Hindi WYSIWYG content (पावरपॉइंट क्या है?, मुख्य फ़ीचर, इंटरफ़ेस टेबल)
+  + YouTube embed + अभ्यास प्रश्न (MCQ in Hindi) + समीक्षा प्रश्न (QNA in Hindi with
+  Hindi model answer).
+- Course editor: EN/HI tabs visible by default, both editable.
+- Language switcher: instant switching, correct tick, no refresh needed.
+
+Stage Summary:
+- Language switcher: hard navigation = instant, reliable locale switching.
+- Course names: transliterated, not translated (पावरपॉइंट फ़ंडामेंटल, not मूल बातें).
+- SEO: auto-generated from the title the editor provides (no auto-translation of
+  content — the editor sets the Hindi title, SEO uses that).
+- Console editor: EN/HI tabs open by default, immediately visible.
+- PowerPoint Fundamentals: fully seeded in EN+HI — 3 modules, 6 lessons, each with
+  long WYSIWYG content + MCQ + QNA, all bilingual. Ready for testing.
+- All changes committed and pushed to GitHub.

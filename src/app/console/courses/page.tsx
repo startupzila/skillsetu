@@ -4,6 +4,7 @@ import { adminListCourses } from '@/lib/admin/content-service'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/shared'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Eye, Send, Archive } from 'lucide-react'
 
 export const metadata: Metadata = { title: 'Courses — Console' }
@@ -63,6 +64,7 @@ export default async function ConsoleCoursesPage() {
               {courses.map((course: Record<string, unknown>) => {
                 const translations = course.translations as { language_code: string; title: string; status: string }[]
                 const enTrans = translations?.find((t) => t.language_code === 'en')
+                const hiTrans = translations?.find((t) => t.language_code === 'hi')
                 return (
                   <tr key={course.id as string} className="hover:bg-accent/30">
                     <td className="px-4 py-3">
@@ -72,7 +74,15 @@ export default async function ConsoleCoursesPage() {
                       >
                         {enTrans?.title ?? course.slug}
                       </Link>
-                      <p className="text-xs text-muted-foreground">/{course.slug}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <p className="text-xs text-muted-foreground">/{course.slug}</p>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">EN</Badge>
+                        {hiTrans ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-300">HI ✓</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">HI —</Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <StatusBadge status={course.status as string} />
