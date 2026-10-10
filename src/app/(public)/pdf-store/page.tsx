@@ -5,7 +5,8 @@ import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Download, FileText, BookOpen, ArrowRight } from 'lucide-react'
+import { Download, FileText, BookOpen } from 'lucide-react'
+import { PdfStoreBrowser } from '@/components/shared/pdf-store-browser'
 
 export const metadata: Metadata = {
   title: 'Free PDF Downloads — Excel, Tally, PowerPoint Notes & Cheat Sheets | MioDemy',
@@ -29,16 +30,17 @@ export default async function PdfStorePage() {
     .eq('status', 'published')
     .order('sort_order', { ascending: true })
 
-  // Filter to EN translations only
   const filtered = (resources ?? []).filter((r: Record<string, unknown>) => {
     const trans = r.translations as Array<Record<string, unknown>>
     return trans?.some((t) => t.language_code === 'en')
   }).map((r: Record<string, unknown>) => ({
-    ...r,
-    title: (r.translations as Array<Record<string, unknown>>)?.find((t) => t.language_code === 'en')?.title,
-    description: (r.translations as Array<Record<string, unknown>>)?.find((t) => t.language_code === 'en')?.description,
+    id: r.id as string,
+    resource_type: r.resource_type as string,
+    file_url: r.file_url as string,
+    title: (r.translations as Array<Record<string, unknown>>)?.find((t) => t.language_code === 'en')?.title as string,
+    description: (r.translations as Array<Record<string, unknown>>)?.find((t) => t.language_code === 'en')?.description as string | null,
     course_title: (r.course as Record<string, unknown>)?.translations?.find?.((t: Record<string, unknown>) => t.language_code === 'en')?.title ?? (r.course as Record<string, unknown>)?.slug,
-    course_slug: (r.course as Record<string, unknown>)?.slug,
+    course_slug: (r.course as Record<string, unknown>)?.slug as string,
   }))
 
   return (
@@ -52,43 +54,7 @@ export default async function PdfStorePage() {
         </p>
       </div>
 
-      {filtered.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((r: Record<string, unknown>) => (
-            <Card key={r.id as string} className="hover:shadow-md transition-shadow">
-              <CardContent className="pt-6 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-primary/10 p-3 shrink-0">
-                    <FileText className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-base line-clamp-2">{r.title as string}</h3>
-                    <Badge variant="secondary" className="text-xs mt-1">{RESOURCE_LABELS[r.resource_type as string] ?? r.resource_type}</Badge>
-                  </div>
-                </div>
-                {r.description && <p className="text-sm text-muted-foreground line-clamp-2">{r.description as string}</p>}
-                <div className="flex items-center justify-between pt-1">
-                  <Link href={`/courses/${r.course_slug}/pdf`} className="text-xs text-muted-foreground hover:text-primary">
-                    <BookOpen className="h-3 w-3 inline mr-1" />
-                    {r.course_title as string}
-                  </Link>
-                  <Button asChild size="sm">
-                    <a href={r.file_url as string} target="_blank" rel="noopener noreferrer" download>
-                      <Download className="h-4 w-4 mr-1.5" />
-                      Download
-                    </a>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">
-          <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          No PDFs available yet. Check back soon!
-        </CardContent></Card>
-      )}
+      <PdfStoreBrowser resources={filtered} />
 
       {/* SEO Content */}
       <div className="mt-12 prose prose-sm max-w-none text-muted-foreground">

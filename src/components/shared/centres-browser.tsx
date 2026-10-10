@@ -106,7 +106,7 @@ export function CentresBrowser({ initialCentres, states = [] }: CentresBrowserPr
             className="pl-9"
           />
         </div>
-        <Button variant="outline" onClick={detectLocation} disabled={detecting}>
+        <Button variant="default" onClick={detectLocation} disabled={detecting} className="bg-primary text-primary-foreground hover:bg-primary/90">
           {detecting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <MapPin className="h-4 w-4 mr-1.5" />}
           Use My Location
         </Button>
