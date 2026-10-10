@@ -1,12 +1,14 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Download, FileText, BookOpen } from 'lucide-react'
 import { PdfStoreBrowser } from '@/components/shared/pdf-store-browser'
+import { safeFetch } from '@/lib/safe-fetch'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
   title: 'Free PDF Downloads — Excel, Tally, PowerPoint Notes & Cheat Sheets | MioDemy',
@@ -19,18 +21,25 @@ const RESOURCE_LABELS: Record<string, string> = {
 }
 
 export default async function PdfStorePage() {
-  const supabase = await createServerSupabaseClient()
-  const { data: resources } = await supabase
-    .from('course_resources')
-    .select(`
-      id, resource_type, file_url, sort_order,
-      course:courses(id, slug, translations:course_translations(title, language_code)),
-      translations:course_resource_translations(title, description, language_code)
-    `)
-    .eq('status', 'published')
-    .order('sort_order', { ascending: true })
+  // Wrap Supabase access in safeFetch so a missing-env-var deploy renders a
+  // friendly fallback instead of a 500.
+  const resources = await safeFetch(async () => {
+    const supabase = await createServerSupabaseClient()
+    const { data } = await supabase
+      .from('course_resources')
+      .select(`
+        id, resource_type, file_url, sort_order,
+        course:courses(id, slug, translations:course_translations(title, language_code)),
+        translations:course_resource_translations(title, description, language_code)
+      `)
+      .eq('status', 'published')
+      .order('sort_order', { ascending: true })
+    return data ?? []
+  })
 
-  const filtered = (resources ?? []).filter((r: Record<string, unknown>) => {
+  if (!resources) return <ServiceUnavailable />
+
+  const filtered = resources.filter((r: Record<string, unknown>) => {
     const trans = r.translations as Array<Record<string, unknown>>
     return trans?.some((t) => t.language_code === 'en')
   }).map((r: Record<string, unknown>) => ({

@@ -2,19 +2,21 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getPublishedCategoryBySlug, listPublishedCoursesByCategory } from '@/lib/content'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { CourseCard } from '@/components/shared'
 import { EmptyState } from '@/components/shared'
 import { FolderOpen } from 'lucide-react'
+import { safeFetch } from '@/lib/safe-fetch'
 
 interface PageProps {
   params: Promise<{ slug: string }>
 }
 
-/** Generate SEO metadata for the category page. */
+/** Generate SEO metadata for the category page (resilient to data errors). */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const { data: category } = await getPublishedCategoryBySlug(slug, 'en')
-  const t = category?.translations[0]
+  const res = await safeFetch(() => getPublishedCategoryBySlug(slug, 'en'))
+  const t = res?.data?.translations[0]
 
   if (!t) return { title: 'Category not found' }
 
@@ -32,12 +34,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 export default async function CategoryPage({ params }: PageProps) {
   const { slug } = await params
-  const [{ data: category }, { data: courses }] = await Promise.all([
-    getPublishedCategoryBySlug(slug, 'en'),
-    listPublishedCoursesByCategory(slug, 'en'),
-  ])
 
+  // Fetch resiliently: a throw here (e.g. Supabase env vars not yet set on
+  // a fresh deploy) renders a friendly fallback instead of a 500. A genuine
+  // "category not found" still returns a proper 404 via notFound().
+  let category = null
+  let unavailable = false
+  try {
+    const res = await getPublishedCategoryBySlug(slug, 'en')
+    category = res.data
+  } catch {
+    unavailable = true
+  }
+
+  if (unavailable) return <ServiceUnavailable />
   if (!category) notFound()
+
+  const coursesRes = await safeFetch(() => listPublishedCoursesByCategory(slug, 'en'))
+  const courses = coursesRes?.data ?? []
 
   const translation = category.translations[0]
 

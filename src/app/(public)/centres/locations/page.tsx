@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, ChevronRight } from 'lucide-react'
+import { safeFetch } from '@/lib/safe-fetch'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
   title: 'Training Centres by Location — Browse All States & Cities | MioDemy',
@@ -11,19 +13,24 @@ export const metadata: Metadata = {
 }
 
 export default async function CentresLocationsPage() {
-  const supabase = await createServerSupabaseClient()
+  // Wrap all Supabase access in safeFetch so a missing-env-var deploy
+  // renders a friendly fallback instead of a 500.
+  const data = await safeFetch(async () => {
+    const supabase = await createServerSupabaseClient()
+    const { data: states } = await supabase
+      .from('jurisdictions').select('id, name')
+      .eq('type', 'state').eq('is_active', true).order('name')
+    const { data: centres } = await supabase
+      .from('training_centres').select(`locations:centre_locations(state, is_primary)`)
+      .eq('status', 'verified')
+    return { states: states ?? [], centres: centres ?? [] }
+  })
 
-  const { data: states } = await supabase
-    .from('jurisdictions').select('id, name')
-    .eq('type', 'state').eq('is_active', true).order('name')
-
-  // Count centres per state
-  const { data: centres } = await supabase
-    .from('training_centres').select(`locations:centre_locations(state, is_primary)`)
-    .eq('status', 'verified')
+  if (!data) return <ServiceUnavailable />
+  const { states, centres } = data
 
   const stateCounts: Record<string, number> = {}
-  ;(centres ?? []).forEach((c: Record<string, unknown>) => {
+  centres.forEach((c: Record<string, unknown>) => {
     const locs = c.locations as Array<Record<string, unknown>>
     locs?.forEach((l) => { if (l.state) stateCounts[l.state as string] = (stateCounts[l.state as string] ?? 0) + 1 })
   })

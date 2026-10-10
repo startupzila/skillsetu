@@ -3,6 +3,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getVerifiedCentreBySlug } from '@/lib/features/feature-service'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
+import { safeFetch } from '@/lib/safe-fetch'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +17,8 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const { data: centre } = await getVerifiedCentreBySlug(slug)
+  const res = await safeFetch(() => getVerifiedCentreBySlug(slug))
+  const centre = res?.data
   if (!centre) return { title: 'Centre not found' }
   const c = centre as Record<string, unknown>
   const locs = c.locations as Array<Record<string, unknown>>
@@ -34,8 +37,27 @@ function formatHours(hours: Record<string, string> | null): string {
 
 export default async function CentreDetailPage({ params }: PageProps) {
   const { slug } = await params
-  const { data: centre, error } = await getVerifiedCentreBySlug(slug)
-  if (!centre || error) notFound()
+
+  // Fetch resiliently: a throw (Supabase env vars missing) renders a
+  // friendly fallback instead of a 500. A genuine not-found returns 404.
+  let centre = null
+  let unavailable = false
+  try {
+    const res = await getVerifiedCentreBySlug(slug)
+    centre = res.data
+    // Service-level error (not a throw): treat as not-found if no data.
+    if (res.error && !centre) {
+      // Could be a real "not found" OR a Supabase error; without more
+      // signal we conservatively return ServiceUnavailable so a fresh
+      // deploy never shows a wrong 404.
+      unavailable = true
+    }
+  } catch {
+    unavailable = true
+  }
+
+  if (unavailable) return <ServiceUnavailable />
+  if (!centre) notFound()
 
   const c = centre as Record<string, unknown>
   const locations = c.locations as Array<Record<string, unknown>>

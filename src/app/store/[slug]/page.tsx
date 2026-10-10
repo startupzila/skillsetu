@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getPublishedProductBySlug, checkEntitlement } from '@/lib/commerce/commerce-service'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
+import { safeFetch } from '@/lib/safe-fetch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -14,7 +16,8 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const { data: product } = await getPublishedProductBySlug(slug)
+  const res = await safeFetch(() => getPublishedProductBySlug(slug))
+  const product = res?.data
   if (!product) return { title: 'Product not found' }
   return {
     title: product.variants?.[0]?.name ?? product.slug,
@@ -28,12 +31,24 @@ function formatPrice(cents: number, currency: string): string {
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params
-  const { data: product, error } = await getPublishedProductBySlug(slug)
 
-  if (!product || error) notFound()
+  // Fetch resiliently: a throw (Supabase env vars missing on a fresh deploy)
+  // renders a friendly fallback instead of a 500. A genuine "product not
+  // found" still returns a proper 404 via notFound().
+  let product = null
+  let unavailable = false
+  try {
+    const res = await getPublishedProductBySlug(slug)
+    product = res.data
+  } catch {
+    unavailable = true
+  }
+
+  if (unavailable) return <ServiceUnavailable />
+  if (!product) notFound()
 
   // Check if the current user is entitled (null if not logged in)
-  const entitlement = await checkEntitlement(product.id).catch(() => ({ entitled: false, error: null }))
+  const entitlement = await safeFetch(() => checkEntitlement(product.id)) ?? { entitled: false, error: null }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">

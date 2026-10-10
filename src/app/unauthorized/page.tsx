@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+
+// Internal error page — never indexed.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 /**
  * Unauthorized page (403).

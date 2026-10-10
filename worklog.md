@@ -910,3 +910,141 @@ Stage Summary:
 - North Star achieved: learner can browse, register, learn, quiz, track progress, switch language;
   editorial user can create/edit/publish content via console.
 - MVP READY FOR PRODUCTION.
+
+---
+Task ID: FIX-DEPLOY-2
+Agent: general-purpose (resilience subagent)
+Task: Make all remaining public server pages + sitemap resilient to missing Supabase env vars
+
+Work Log:
+- Read worklog.md, safe-fetch.ts, service-unavailable.tsx, supabase/server.ts, and the already-fixed `courses/[slug]/page.tsx` to understand the canonical Pattern A/B/C the main agent established.
+- Audited every file in the task list to determine whether it actually throws (most do, via `createServerSupabaseClient()` or content/commerce service wrappers that delegate to it).
+- Verified `src/app/(public)/books/page.tsx` is purely static — no Supabase calls — and skipped it.
+- Verified `src/app/(public)/centres/register/page.tsx` renders only a client `CentreRegistrationForm` — no server-side Supabase call — and skipped it.
+- Verified `src/components/public/breadcrumbs.tsx` is a pure presentational component (no data fetching) — skipped.
+- Confirmed Supabase env vars are not set in this sandbox (`env | grep -i supabase` → empty), so every fix is exercised under the "fresh Vercel deploy before env wiring" condition.
+
+Files changed (15 total):
+
+1. `src/app/(public)/courses/page.tsx` — Pattern A: wrapped `listPublishedCourses` + `listPublishedCategories` in `safeFetch`, default to `[]`.
+2. `src/app/(public)/skills/page.tsx` — Pattern A: wrapped `listPublishedCategories` in `safeFetch`; preserved existing `error` → empty-state branch.
+3. `src/app/(public)/skills/[slug]/page.tsx` — Pattern B + C: try/catch around `getPublishedCategoryBySlug` → `<ServiceUnavailable />` on throw, `notFound()` on genuine miss; `listPublishedCoursesByCategory` wrapped in `safeFetch`; `generateMetadata` uses `safeFetch`.
+4. `src/app/(public)/courses/[slug]/[module]/[lesson]/page.tsx` — Pattern B + C: try/catch around the `Promise.all([getPublishedLessonBySlug, getPublishedCourseBySlug])` (one throws → both unavailable); `getLessonUserState` wrapped in `safeFetch` with `{bookmarked:false, progress:null}` fallback; `generateMetadata` uses `safeFetch`.
+5. `src/app/(public)/courses/[slug]/pdf/page.tsx` — Pattern B + C: try/catch around `getPublishedCourseBySlug`; `listCourseResources` wrapped in `safeFetch` → `[]`; `generateMetadata` uses `safeFetch`.
+6. `src/app/(public)/search/page.tsx` — Pattern A: wrapped `search()` in `safeFetch`; added a `{query && !results}` EmptyState branch so a failed search renders a friendly "Search is temporarily unavailable" instead of nothing.
+7. `src/app/(public)/[slug]/page.tsx` (CMS static page) — Pattern B + C: try/catch around `getPublishedPageBySlug`; treats both throw and `error` field as `<ServiceUnavailable />` (avoid risking a wrong 404 on a misconfigured deploy); `generateMetadata` uses `safeFetch`.
+8. `src/app/store/page.tsx` — Pattern A: wrapped `listPublishedProducts` in `safeFetch`; preserved the existing `error` branch.
+9. `src/app/store/[slug]/page.tsx` — Pattern B + C: try/catch around `getPublishedProductBySlug`; `checkEntitlement` wrapped in `safeFetch` with `{entitled:false, error:null}` fallback (replaces the prior `.catch()` which would have masked the real Supabase throw from the outer fetch); `generateMetadata` uses `safeFetch`.
+10. `src/app/(public)/centres/page.tsx` — Pattern A: `listVerifiedCentres` in `safeFetch`, `listStates` in `safeFetchOr(_, [])`.
+11. `src/app/(public)/centres/[slug]/page.tsx` — Pattern B + C: try/catch around `getVerifiedCentreBySlug`; `generateMetadata` uses `safeFetch`.
+12. `src/app/(public)/centres/locations/page.tsx` — Pattern B: whole `createServerSupabaseClient()` + both queries wrapped in a single `safeFetch(async () => …)` that returns `{states, centres}`; `<ServiceUnavailable />` when null.
+13. `src/app/(public)/centres/locations/[state]/page.tsx` — Pattern B: single `safeFetch` block returns `{stateFound, districts, centres}`; `<ServiceUnavailable />` on null, `notFound()` if the state doesn't exist.
+14. `src/app/(public)/centres/locations/[state]/[district]/page.tsx` — Pattern B: single `safeFetch` block returns `{distFound, cities, allCentres}`; `<ServiceUnavailable />` on null, `notFound()` if the district doesn't exist.
+15. `src/app/(public)/centres/locations/[state]/[district]/[city]/page.tsx` — Pattern B: `safeFetch` wraps the centres query; `<ServiceUnavailable />` on null. (Also removed the previously-unused `notFound` import.)
+16. `src/app/(public)/pdf-store/page.tsx` — Pattern B: `safeFetch` wraps the whole `createServerSupabaseClient()` + resources query, returns the array or null; `<ServiceUnavailable />` when null.
+17. `src/app/sitemap.ts` — Pattern C: split into a static-pages section (always emitted) and a dynamic section wrapped in `safeFetch(async () => …)`. On any Supabase throw, the sitemap still returns 200 with just the 7 static entries.
+18. `src/app/(public)/quiz/[slug]/page.tsx` — bonus fix (also a public server page): Pattern B + C — try/catch around `getPublishedQuizBySlug`; `generateMetadata` uses `safeFetch`. Preserved the existing "schema/does not exist" empty-state branch.
+
+Notes on behaviour:
+- For detail pages where Supabase throws, we return `<ServiceUnavailable />` (HTTP 200) instead of attempting `notFound()`. This is intentional: with the data store unreachable we cannot distinguish "missing" from "broken", and a wrong 404 on a fresh deploy would be SEO-hostile. Once env vars ARE wired, the normal data path is unchanged — `notFound()` fires for genuine misses.
+- All `generateMetadata` functions return a minimal "Not found" title when the fetch returns null, so metadata never throws.
+
+Stage Summary:
+- 15 task-list files fixed + 1 bonus (`quiz/[slug]`), totalling 16 file edits.
+- Dev server (`bun x next dev`) booted cleanly on a sandbox with NO Supabase env vars. curl status codes for every required route:
+  - `/` → 200
+  - `/courses` → 200
+  - `/courses/powerpoint-fundamentals` → 200 (ServiceUnavailable fallback)
+  - `/courses/does-not-exist` → 200 (ServiceUnavailable fallback — cannot distinguish from real miss when Supabase is down)
+  - `/skills` → 200
+  - `/skills/foo` → 200 (ServiceUnavailable fallback)
+  - `/search` → 200
+  - `/search?q=excel` → 200 (renders "Search is temporarily unavailable" empty state)
+  - `/books` → 200 (always was; static)
+  - `/store` → 200
+  - `/store/foo` → 200 (ServiceUnavailable fallback)
+  - `/centres` → 200
+  - `/centres/locations` → 200
+  - `/centres/locations/maharashtra` → 200
+  - `/centres/locations/maharashtra/mumbai` → 200
+  - `/centres/locations/maharashtra/mumbai/andheri` → 200
+  - `/centres/foo` → 200 (ServiceUnavailable fallback)
+  - `/pdf-store` → 200
+  - `/about` → 200 (ServiceUnavailable fallback via /[slug])
+  - `/quiz/foo` → 200 (ServiceUnavailable fallback)
+  - `/sitemap.xml` → 200 (returns only the 7 static entries)
+- `dev.log` after the full sweep contains ZERO matches for `Missing NEXT_PUBLIC_SUPABASE_URL`, `unhandled`, `exception`, or `Error:` (verified with `grep -iE`).
+- `bun run lint` → exit 0, zero errors, zero warnings.
+- No new test files created. No files outside the task scope touched. Main-agent files (`middleware.ts`, `robots.ts`, `layout.tsx`, `(public)/layout.tsx`, `console/layout.tsx`, `(auth)/layout.tsx`, `dashboard/page.tsx`, `footer.tsx`, `custom-code-injector.tsx`, `(public)/page.tsx`, `courses/[slug]/page.tsx`) left untouched as instructed.
+
+---
+Task ID: FIX-DEPLOY
+Agent: Z.ai Code (main)
+Task: Fix Vercel server-side error (home + course pages) + make Console/internal system non-indexable by search engines
+
+Work Log:
+- Diagnosed root cause of Vercel "Application error: a server-side exception has
+  occurred (Digest: 2010651068)": the Supabase env vars
+  (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY) were not wired on
+  Vercel, so `createServerClient(...)` in src/middleware.ts threw
+  "Your project's URL and Key are required to create a Supabase client!" on
+  EVERY request, crashing the whole site (home + /courses/[slug] + everything).
+- Created src/lib/safe-fetch.ts exporting `safeFetch<T>()` (returns null on throw)
+  and `safeFetchOr<T>(fn, fallback)` — a defensive wrapper so public pages
+  degrade gracefully instead of 500-ing when the backing store is unavailable.
+- Created src/components/public/service-unavailable.tsx — branded "Content is
+  temporarily unavailable" fallback rendered by detail pages when a fetch throws.
+- Hardened src/middleware.ts (the actual crash point):
+  * Guards Supabase client creation — if env vars missing, skips redirect lookup
+    + session refresh, still protects /console/* (redirect → /login), and lets
+    public pages render fallbacks. Site no longer hard-crashes.
+  * Wraps redirect-lookup + session-refresh in try/catch (best-effort).
+  * Stamps `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` on EVERY
+    response (including redirects) for internal paths: /console, /dashboard,
+    /api, /login, /register, /forgot-password, /reset-password, /verify-email,
+    /unauthorized. Public paths get NO such header (remain indexable).
+- Made shared layout components resilient (these run on EVERY page):
+  * src/components/public/footer.tsx → safeFetchOr(listFooterPages, []).
+  * src/components/seo/custom-code-injector.tsx (root layout) → safeFetchOr.
+- Made the two REPORTED pages resilient:
+  * src/app/(public)/page.tsx (home) → safeFetch, defaults to [].
+  * src/app/(public)/courses/[slug]/page.tsx (course detail) → try/catch
+    distinguishes "Supabase unavailable" (→ <ServiceUnavailable/>) from
+    genuine "not found" (→ notFound()/404); generateMetadata uses safeFetch.
+- Subagent (Task FIX-DEPLOY-2) hardened all remaining public server pages +
+  sitemap.ts with the same pattern (courses list, lesson, pdf, skills, search,
+  CMS [slug], store, store/[slug], centres, centres/locations/**, quiz,
+  pdf-store, sitemap). All now return 200 instead of 500. Lint: 0 errors.
+- Made the Console + internal system non-indexable (3 layers of defense):
+  1. robots.txt (src/app/robots.ts): Disallow /console, /dashboard, /api,
+     /login, /register, /forgot-password, /reset-password, /verify-email,
+     /unauthorized.
+  2. X-Robots-Tag: noindex,nofollow,noarchive,nosnippet HTTP header on every
+     internal-path response (middleware, incl. redirects).
+  3. <meta name="robots" content="noindex,nofollow"> via metadata in
+     console/layout.tsx, dashboard/page.tsx, (auth)/layout.tsx,
+     unauthorized/page.tsx.
+  Also removed /login + /register from sitemap.ts static entries.
+- Browser verification (agent-browser, no Supabase env vars set):
+  * Home `/` → 200, renders hero + nav + methodology + footer, 0 console errors.
+  * Course `/courses/powerpoint-fundamentals` → 200, renders the
+    "Content is temporarily unavailable" fallback (was the reported 500).
+  * `/login` → 200, renders form + `<meta name="robots" content="noindex,nofollow">`.
+  * All 17 public routes return 200; /console + /dashboard → 307→/login (noindex).
+  * dev.log: no unhandled errors after fixes.
+- Ran `bun run lint` — passed, zero errors.
+
+Stage Summary:
+- ROOT CAUSE: missing Supabase env vars on Vercel made the middleware throw on
+  every request → site-wide 500. Fixed by making middleware + every public
+  server page + shared layout components resilient (safe-fetch helper +
+  ServiceUnavailable fallback). Site now degrades gracefully instead of crashing.
+- IMPORTANT for the user: to see real course/content data on Vercel, set these
+  environment variables in the Vercel project settings (Settings → Environment
+  Variables): NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SITE_URL (=https://miodemy.vercel.app).
+  Until set, public pages show the friendly "temporarily unavailable" fallback
+  (no crash); once set, real data renders normally.
+- Internal system (console, dashboard, api, auth) is fully protected from
+  indexing/crawling via robots.txt + X-Robots-Tag header + <meta robots> tag.
+- All changes committed and pushed to GitHub.

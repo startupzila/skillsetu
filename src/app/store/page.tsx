@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Download, BookOpen, Package } from 'lucide-react'
+import { safeFetch } from '@/lib/safe-fetch'
 
 export const metadata: Metadata = {
   title: 'Store',
@@ -17,7 +18,9 @@ function formatPrice(cents: number, currency: string): string {
 }
 
 export default async function StorePage() {
-  const { data: products, error } = await listPublishedProducts()
+  const res = await safeFetch(() => listPublishedProducts())
+  const products = res?.data ?? []
+  const error = res?.error ?? null
 
   return (
     <div className="container mx-auto px-4 py-8">

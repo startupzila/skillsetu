@@ -1,7 +1,22 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession, isStaff, AuthError } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
+
+/**
+ * Console metadata.
+ *
+ * The console is a company-internal editorial/admin system and must NEVER
+ * be indexed by search engines or crawled by bots. Reinforced by:
+ *   - robots.txt disallow /console
+ *   - X-Robots-Tag: noindex,nofollow header (middleware)
+ *   - this <meta name="robots" content="noindex,nofollow">
+ */
+export const metadata: Metadata = {
+  title: { default: 'Console', template: '%s | MioDemy Console' },
+  robots: { index: false, follow: false, nocache: true },
+}
 
 /**
  * Console layout — protects all /console/* routes.

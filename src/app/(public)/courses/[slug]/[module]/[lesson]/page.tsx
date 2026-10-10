@@ -14,6 +14,8 @@ import {
   type SidebarModule,
 } from '@/components/learning'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
+import { safeFetch } from '@/lib/safe-fetch'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Clock } from 'lucide-react'
@@ -22,11 +24,11 @@ interface PageProps {
   params: Promise<{ slug: string; module: string; lesson: string }>
 }
 
-/** Generate SEO metadata for the lesson page. */
+/** Generate SEO metadata for the lesson page (resilient to data errors). */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug, lesson } = await params
-  const { data } = await getPublishedLessonBySlug(slug, lesson, 'en')
-  const t = data?.translation
+  const res = await safeFetch(() => getPublishedLessonBySlug(slug, lesson, 'en'))
+  const t = res?.data?.translation
 
   if (!t) return { title: 'Lesson not found' }
 
@@ -55,12 +57,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function LessonPage({ params }: PageProps) {
   const { slug, lesson } = await params
 
-  const [lessonResult, courseResult] = await Promise.all([
-    getPublishedLessonBySlug(slug, lesson, 'en'),
-    getPublishedCourseBySlug(slug, 'en'),
-  ])
+  // Fetch resiliently: a throw here (e.g. Supabase env vars not yet set on a
+  // fresh deploy) renders a friendly fallback instead of a 500. A genuine
+  // "lesson or course not found" still returns a proper 404 via notFound().
+  let lessonResult = null
+  let courseResult = null
+  let unavailable = false
+  try {
+    ;[lessonResult, courseResult] = await Promise.all([
+      getPublishedLessonBySlug(slug, lesson, 'en'),
+      getPublishedCourseBySlug(slug, 'en'),
+    ])
+  } catch {
+    unavailable = true
+  }
 
-  if (!lessonResult.data || !courseResult.data) notFound()
+  if (unavailable) return <ServiceUnavailable />
+  if (!lessonResult?.data || !courseResult?.data) notFound()
 
   const {
     lesson: lessonData,
@@ -68,14 +81,13 @@ export default async function LessonPage({ params }: PageProps) {
     blocks,
     course,
     module: mod,
-    prevLesson,
-    nextLesson,
   } = lessonResult.data
   const courseT = courseResult.data.translations[0]
   const modT = courseResult.data.modules.find((m) => m.id === mod.id)?.translations[0]
 
   // Fetch user state (bookmark + progress) — null if not authenticated
-  const userState = await getLessonUserState(lessonData.id)
+  // (or if Supabase is unreachable — never block rendering for this)
+  const userState = await safeFetch(() => getLessonUserState(lessonData.id)) ?? { bookmarked: false, progress: null }
 
   // Build sidebar modules data
   const sidebarModules: SidebarModule[] = courseResult.data.modules.map((m) => ({

@@ -5,6 +5,7 @@ import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/shared'
+import { safeFetch } from '@/lib/safe-fetch'
 import { Search as SearchIcon, Clock, BarChart3, BookOpen, FileQuestion } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -26,7 +27,9 @@ interface PageProps {
 export default async function SearchPage({ searchParams }: PageProps) {
   const { q } = await searchParams
   const query = q ?? ''
-  const results = query ? await search(query, 'en', 20) : null
+  // Use safeFetch so a Supabase outage doesn't 500 the page — we just
+  // render an empty result set with the same UI.
+  const results = query ? await safeFetch(() => search(query, 'en', 20)) : null
 
   const typeIcon = {
     course: BookOpen,
@@ -147,6 +150,14 @@ export default async function SearchPage({ searchParams }: PageProps) {
           icon={SearchIcon}
           title="Start typing to search"
           description="Search across courses, lessons and practice questions."
+        />
+      )}
+
+      {query && !results && (
+        <EmptyState
+          icon={SearchIcon}
+          title="Search is temporarily unavailable"
+          description="We couldn't run your search right now. Please try again in a moment."
         />
       )}
     </div>

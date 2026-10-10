@@ -11,7 +11,11 @@ import { Badge } from '@/components/ui/badge'
 import { ProgressBar } from '@/components/shared'
 import { BookOpen, Bookmark, NotebookPen, ShoppingBag, Download, Clock, Trophy, ArrowRight } from 'lucide-react'
 
-export const metadata: Metadata = { title: 'Dashboard' }
+export const metadata: Metadata = {
+  title: 'Dashboard',
+  // Private learner dashboard — never indexed by search engines.
+  robots: { index: false, follow: false },
+}
 
 export default async function DashboardPage() {
   const session = await getSession().catch(() => null)

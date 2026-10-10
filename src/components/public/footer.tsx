@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { listFooterPages } from '@/lib/content/pages-service'
+import { safeFetchOr } from '@/lib/safe-fetch'
 
 interface FooterProps {
   lang?: 'en' | 'hi'
@@ -10,10 +11,12 @@ interface FooterProps {
  *
  * Fetches CMS-managed pages (about, privacy, terms, etc.) from the
  * `static_pages` table for the "Company" and "Legal" sections.
+ * Degrades gracefully to an empty list if the backing store is
+ * unavailable so it never crashes the whole page.
  */
 export default async function Footer({ lang = 'en' }: FooterProps) {
   const year = new Date().getFullYear()
-  const footerPages = await listFooterPages(lang)
+  const footerPages = await safeFetchOr(() => listFooterPages(lang), [])
 
   // Split pages into company/legal based on slug
   const companyPages = footerPages.filter((p) =>

@@ -1,10 +1,12 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { Card, CardContent } from '@/components/ui/card'
 import { Building2, MapPin, ChevronRight } from 'lucide-react'
+import { safeFetch } from '@/lib/safe-fetch'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 interface PageProps { params: Promise<{ state: string; district: string }> }
 
@@ -22,20 +24,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function DistrictCentresPage({ params }: PageProps) {
   const { state, district } = await params
   const stateName = humanize(state), districtName = humanize(district)
-  const supabase = await createServerSupabaseClient()
 
-  // Get cities in this district
-  const { data: distJur } = await supabase.from('jurisdictions').select('id').eq('name', districtName).eq('type', 'district').single()
-  if (!distJur) notFound()
+  // Wrap all Supabase access in safeFetch so a missing-env-var deploy
+  // renders a friendly fallback instead of a 500.
+  const data = await safeFetch(async () => {
+    const supabase = await createServerSupabaseClient()
+    const { data: distJur } = await supabase.from('jurisdictions').select('id').eq('name', districtName).eq('type', 'district').single()
+    const { data: cities } = await supabase.from('jurisdictions').select('id, name').eq('type', 'city').eq('parent_id', distJur?.id ?? '').eq('is_active', true).order('name')
+    const { data: allCentres } = await supabase.from('training_centres')
+      .select(`id, slug, name, about, established_year, locations:centre_locations(city, district, state, is_primary)`)
+      .eq('status', 'verified')
+    return { distFound: !!distJur, cities: cities ?? [], allCentres: allCentres ?? [] }
+  })
 
-  const { data: cities } = await supabase.from('jurisdictions').select('id, name').eq('type', 'city').eq('parent_id', distJur.id).eq('is_active', true).order('name')
+  if (!data) return <ServiceUnavailable />
+  const { distFound, cities, allCentres } = data
+  if (!distFound) notFound()
 
-  // Get centres — match by district name in locations
-  const { data: allCentres } = await supabase.from('training_centres')
-    .select(`id, slug, name, about, established_year, locations:centre_locations(city, district, state, is_primary)`)
-    .eq('status', 'verified')
-
-  const centres = (allCentres ?? []).filter((c: Record<string, unknown>) => {
+  const centres = allCentres.filter((c: Record<string, unknown>) => {
     const locs = c.locations as Array<Record<string, unknown>>
     return locs?.some(l => (l.district as string)?.toLowerCase() === districtName.toLowerCase() || (l.city as string)?.toLowerCase() === districtName.toLowerCase())
   })

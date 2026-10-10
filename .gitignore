@@ -62,6 +62,7 @@ db/*.db-journal
 # sandbox gateway / dev tooling (environment-specific, not the product)
 Caddyfile
 .zscripts/
+run-dev.sh
 
 # sandbox runtime build scripts (these are NOT project tests)
 tests/*.sh

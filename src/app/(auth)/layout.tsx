@@ -1,5 +1,16 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
+
+/**
+ * Auth layout metadata.
+ *
+ * Auth pages (login, register, password reset) are part of the internal
+ * system and must not be indexed. Reinforced by robots.txt + X-Robots-Tag.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 /**
  * Auth layout — wraps all auth pages (login, register, etc.)

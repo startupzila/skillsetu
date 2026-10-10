@@ -3,19 +3,21 @@ import type { Metadata } from 'next'
 import { getPublishedQuizBySlug } from '@/lib/learning'
 import { QuizRunner } from '@/components/learning'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { EmptyState } from '@/components/shared'
 import { Card, CardContent } from '@/components/ui/card'
 import { ListChecks } from 'lucide-react'
+import { safeFetch } from '@/lib/safe-fetch'
 
 interface PageProps {
   params: Promise<{ slug: string }>
 }
 
-/** Generate SEO metadata for the quiz page. */
+/** Generate SEO metadata for the quiz page (resilient to data errors). */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const { data } = await getPublishedQuizBySlug(slug, 'en')
-  const t = data?.translation
+  const res = await safeFetch(() => getPublishedQuizBySlug(slug, 'en'))
+  const t = res?.data?.translation
 
   if (!t) return { title: 'Quiz not found' }
 
@@ -33,7 +35,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 export default async function QuizPage({ params }: PageProps) {
   const { slug } = await params
-  const { data, error } = await getPublishedQuizBySlug(slug, 'en')
+
+  // Fetch resiliently: a throw (Supabase env vars missing) renders a
+  // friendly fallback instead of a 500. A genuine not-found returns 404.
+  let data = null
+  let error: string | null = null
+  let unavailable = false
+  try {
+    const res = await getPublishedQuizBySlug(slug, 'en')
+    data = res.data
+    error = res.error
+  } catch {
+    unavailable = true
+  }
+
+  if (unavailable) return <ServiceUnavailable />
 
   if (error || !data) {
     if (error?.includes('schema') || error?.includes('does not exist')) {

@@ -4,6 +4,8 @@ import type { Metadata } from 'next'
 import { getPublishedCourseBySlug } from '@/lib/content'
 import { listCourseResources } from '@/lib/features/feature-service'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
+import { safeFetch } from '@/lib/safe-fetch'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -32,7 +34,8 @@ const RESOURCE_LABELS: Record<string, string> = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const { data: course } = await getPublishedCourseBySlug(slug, 'en')
+  const res = await safeFetch(() => getPublishedCourseBySlug(slug, 'en'))
+  const course = res?.data
   if (!course) return { title: 'Resources not found' }
   const t = course.translations[0]
   return {
@@ -49,9 +52,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CoursePdfPage({ params }: PageProps) {
   const { slug } = await params
-  const { data: course } = await getPublishedCourseBySlug(slug, 'en')
+
+  // Fetch course resiliently. A throw (Supabase unavailable) → friendly
+  // fallback. A genuine not-found → 404.
+  let course = null
+  let unavailable = false
+  try {
+    const res = await getPublishedCourseBySlug(slug, 'en')
+    course = res.data
+  } catch {
+    unavailable = true
+  }
+
+  if (unavailable) return <ServiceUnavailable />
   if (!course) notFound()
-  const { data: resources } = await listCourseResources(course.id, 'en')
+
+  const resourcesRes = await safeFetch(() => listCourseResources(course.id, 'en'))
+  const resources = resourcesRes?.data ?? []
   const t = course.translations[0]
 
   return (

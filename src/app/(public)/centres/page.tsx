@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { CentresBrowser } from '@/components/shared/centres-browser'
+import { safeFetch, safeFetchOr } from '@/lib/safe-fetch'
 
 export const metadata: Metadata = {
   title: 'Skill & Training Centres in India — Find Institutes Near You | MioDemy',
@@ -14,10 +15,11 @@ export const metadata: Metadata = {
 
 export default async function CentresPage({ searchParams }: { searchParams: Promise<{ city?: string; state?: string; lat?: string; lng?: string }> }) {
   const { city, state } = await searchParams
-  const [{ data: centres }, states] = await Promise.all([
-    listVerifiedCentres({ city, state }),
-    listStates(),
+  const [centresRes, states] = await Promise.all([
+    safeFetch(() => listVerifiedCentres({ city, state })),
+    safeFetchOr(() => listStates(), []),
   ])
+  const centres = centresRes?.data ?? []
 
   // Get unique states from centres for filter display
   const centreStates = new Set<string>()

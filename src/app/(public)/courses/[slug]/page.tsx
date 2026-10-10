@@ -3,7 +3,9 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getPublishedCourseBySlug, listPublishedCourses } from '@/lib/content'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { CourseCard } from '@/components/shared'
+import { safeFetch } from '@/lib/safe-fetch'
 import { JsonLdCourse, JsonLdBreadcrumbs } from '@/components/seo/json-ld'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -25,11 +27,11 @@ interface PageProps {
   params: Promise<{ slug: string }>
 }
 
-/** Generate SEO metadata for the course page. */
+/** Generate SEO metadata for the course page (resilient to data errors). */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const { data: course } = await getPublishedCourseBySlug(slug, 'en')
-  const t = course?.translations[0]
+  const res = await safeFetch(() => getPublishedCourseBySlug(slug, 'en'))
+  const t = res?.data?.translations[0]
 
   if (!t) return { title: 'Course not found' }
 
@@ -53,8 +55,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 export default async function CoursePage({ params }: PageProps) {
   const { slug } = await params
-  const { data: course } = await getPublishedCourseBySlug(slug, 'en')
 
+  // Fetch resiliently: a throw here (e.g. Supabase env vars not yet set on a
+  // fresh deploy) is treated as a temporary outage and renders a friendly
+  // fallback instead of a hard 500. A genuine "course not found" still
+  // returns a proper 404 via notFound().
+  let course
+  let unavailable = false
+  try {
+    const res = await getPublishedCourseBySlug(slug, 'en')
+    course = res.data
+  } catch {
+    unavailable = true
+    course = null
+  }
+
+  if (unavailable) return <ServiceUnavailable />
   if (!course) notFound()
 
   const t = course.translations[0]
@@ -68,8 +84,8 @@ export default async function CoursePage({ params }: PageProps) {
   let relatedCourses: typeof course[] = []
   if (catSlug) {
     // Use listPublishedCourses to find related (simplified: just fetch all and filter)
-    const { data: all } = await listPublishedCourses('en')
-    relatedCourses = (all ?? []).filter((c) => c.id !== course.id).slice(0, 3)
+    const allRes = await safeFetch(() => listPublishedCourses('en'))
+    relatedCourses = (allRes?.data ?? []).filter((c) => c.id !== course.id).slice(0, 3)
   }
 
   // Calculate total lessons + duration

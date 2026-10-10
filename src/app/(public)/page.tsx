@@ -4,6 +4,7 @@ import { CourseCard } from '@/components/shared'
 import { JsonLdWebsite } from '@/components/seo/json-ld'
 import { TypingHeading } from '@/components/public/typing-heading'
 import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
+import { safeFetch } from '@/lib/safe-fetch'
 import { BookOpen, GraduationCap, Languages, ArrowRight, Building2, Plus } from 'lucide-react'
 
 /**
@@ -11,12 +12,16 @@ import { BookOpen, GraduationCap, Languages, ArrowRight, Building2, Plus } from 
  *
  * Server component: fetches published courses + categories from Supabase.
  * Rendered inside the (public) layout which provides Header + Footer.
+ *
+ * Resilient: if the data source is unavailable (e.g. Supabase env vars not
+ * configured yet on a fresh deploy), the page still renders the hero and
+ * static marketing sections instead of throwing a server-side exception.
  */
 export default async function Home() {
-  const [{ data: courses }, { data: categories }] = await Promise.all([
-    listPublishedCourses('en'),
-    listPublishedCategories('en'),
-  ])
+  const coursesRes = await safeFetch(() => listPublishedCourses('en'))
+  const categoriesRes = await safeFetch(() => listPublishedCategories('en'))
+  const courses = coursesRes?.data ?? []
+  const categories = categoriesRes?.data ?? []
 
   return (
     <>

@@ -5,6 +5,7 @@ import { CourseCard } from '@/components/shared'
 import { EmptyState } from '@/components/shared'
 import { BookOpen } from 'lucide-react'
 import { SearchableCourseGrid } from '@/components/shared/searchable-course-grid'
+import { safeFetch } from '@/lib/safe-fetch'
 
 export const metadata: Metadata = {
   title: 'All Courses — Free Excel, Tally, Digital Marketing & More | MioDemy',
@@ -13,10 +14,12 @@ export const metadata: Metadata = {
 }
 
 export default async function CoursesPage() {
-  const [{ data: courses }, { data: categories }] = await Promise.all([
-    listPublishedCourses('en'),
-    listPublishedCategories('en'),
+  const [coursesRes, categoriesRes] = await Promise.all([
+    safeFetch(() => listPublishedCourses('en')),
+    safeFetch(() => listPublishedCategories('en')),
   ])
+  const courses = coursesRes?.data ?? []
+  const categories = categoriesRes?.data ?? []
 
   // Build simplified course data for the client component
   const courseData = (courses ?? []).map(c => ({

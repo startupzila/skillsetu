@@ -2,15 +2,18 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getPublishedPageBySlug } from '@/lib/content/pages-service'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
+import { safeFetch } from '@/lib/safe-fetch'
 
 interface PageProps {
   params: Promise<{ slug: string }>
 }
 
-/** Generate SEO metadata from the page's meta_description. */
+/** Generate SEO metadata from the page's meta_description (resilient to data errors). */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const { data: page } = await getPublishedPageBySlug(slug, 'en')
+  const res = await safeFetch(() => getPublishedPageBySlug(slug, 'en'))
+  const page = res?.data
 
   if (!page) return { title: 'Page not found' }
 
@@ -31,9 +34,25 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 export default async function StaticPage({ params }: PageProps) {
   const { slug } = await params
-  const { data: page, error } = await getPublishedPageBySlug(slug, 'en')
 
-  if (!page || error) notFound()
+  // Fetch resiliently: a throw (Supabase unavailable) renders a friendly
+  // fallback instead of a 500. A genuine not-found returns 404.
+  let page = null
+  let serviceError = false
+  try {
+    const res = await getPublishedPageBySlug(slug, 'en')
+    page = res.data
+    serviceError = !!res.error
+  } catch {
+    serviceError = true
+  }
+
+  // Distinguish "data store unreachable" (→ friendly fallback) from
+  // "page genuinely does not exist" (→ 404). When env vars are missing,
+  // the service throws or returns an error message; either way we show
+  // the ServiceUnavailable fallback rather than risk a wrong 404.
+  if (serviceError) return <ServiceUnavailable />
+  if (!page) notFound()
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">

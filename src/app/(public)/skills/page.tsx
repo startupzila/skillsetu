@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/shared'
 import { FolderOpen, ArrowRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { SearchableCategoriesGrid } from '@/components/shared/searchable-categories-grid'
+import { safeFetch } from '@/lib/safe-fetch'
 
 export const metadata: Metadata = {
   title: 'All Skills & Categories — Learn Excel, Tally, Digital Marketing & More',
@@ -13,7 +14,9 @@ export const metadata: Metadata = {
 }
 
 export default async function SkillsPage() {
-  const { data: categories, error } = await listPublishedCategories('en')
+  const res = await safeFetch(() => listPublishedCategories('en'))
+  const error = res?.error ?? null
+  const categories = res?.data ?? []
 
   if (error) {
     return (

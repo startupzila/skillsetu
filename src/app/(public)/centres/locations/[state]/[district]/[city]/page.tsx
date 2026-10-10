@@ -1,10 +1,11 @@
-import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
+import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { Card, CardContent } from '@/components/ui/card'
 import { Building2, MapPin } from 'lucide-react'
+import { safeFetch } from '@/lib/safe-fetch'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 interface PageProps { params: Promise<{ state: string; district: string; city: string }> }
 
@@ -22,13 +23,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CityCentresPage({ params }: PageProps) {
   const { state, district, city } = await params
   const stateName = humanize(state), districtName = humanize(district), cityName = humanize(city)
-  const supabase = await createServerSupabaseClient()
 
-  const { data: allCentres } = await supabase.from('training_centres')
-    .select(`id, slug, name, about, established_year, email, phone, locations:centre_locations(city, district, state, is_primary)`)
-    .eq('status', 'verified')
+  // Wrap all Supabase access in safeFetch so a missing-env-var deploy
+  // renders a friendly fallback instead of a 500.
+  const allCentres = await safeFetch(async () => {
+    const supabase = await createServerSupabaseClient()
+    const { data } = await supabase.from('training_centres')
+      .select(`id, slug, name, about, established_year, email, phone, locations:centre_locations(city, district, state, is_primary)`)
+      .eq('status', 'verified')
+    return data ?? []
+  })
 
-  const centres = (allCentres ?? []).filter((c: Record<string, unknown>) => {
+  if (!allCentres) return <ServiceUnavailable />
+
+  const centres = allCentres.filter((c: Record<string, unknown>) => {
     const locs = c.locations as Array<Record<string, unknown>>
     return locs?.some(l => (l.city as string)?.toLowerCase() === cityName.toLowerCase())
   })
