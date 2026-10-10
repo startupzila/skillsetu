@@ -147,14 +147,67 @@ export async function adminUpdateQuestion(
   return { data, error: null }
 }
 
-/** Update question translation (text + explanation + model_answer). */
+/** Update question translation (text + explanation + model_answer).
+ *
+ *  Supports two flows:
+ *   (a) Standard update by translation id — used when the translation already
+ *       exists (e.g. editing the EN translation).
+ *   (b) Upsert by (question_id, language_code) — used by the lesson editor's
+ *       Hindi tab to create the HI translation on first save. The caller
+ *       passes `question_id` and `language_code` inside `updates`; the
+ *       `translationId` arg is ignored in this path.
+ */
 export async function adminUpdateQuestionTranslation(
   translationId: string,
-  updates: { question_text?: string; explanation?: string | null; model_answer?: string | null },
+  updates: {
+    question_text?: string
+    explanation?: string | null
+    model_answer?: string | null
+    question_id?: string
+    language_code?: string
+  },
 ) {
   await requirePermission('question.create')
   const admin = createAdminClient()
 
+  // Upsert by (question_id, language_code)
+  if (updates.question_id && updates.language_code) {
+    const { question_id, language_code, ...fields } = updates
+    const { data: existing } = await admin
+      .from('question_translations')
+      .select('id')
+      .eq('question_id', question_id)
+      .eq('language_code', language_code)
+      .maybeSingle()
+
+    if (existing) {
+      const { data, error } = await admin
+        .from('question_translations')
+        .update(fields)
+        .eq('id', existing.id)
+        .select()
+        .single()
+      if (error) return { data: null, error: error.message }
+      return { data, error: null }
+    }
+
+    const { data, error } = await admin
+      .from('question_translations')
+      .insert({
+        question_id,
+        language_code,
+        question_text: fields.question_text ?? '',
+        explanation: fields.explanation ?? null,
+        model_answer: fields.model_answer ?? null,
+        status: 'draft',
+      })
+      .select()
+      .single()
+    if (error) return { data: null, error: error.message }
+    return { data, error: null }
+  }
+
+  // Standard update by id
   const { data, error } = await admin
     .from('question_translations')
     .update(updates)

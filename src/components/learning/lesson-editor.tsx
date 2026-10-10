@@ -35,6 +35,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   ArrowLeft,
   Save,
@@ -54,8 +55,11 @@ import { sanitizeHtml } from '@/lib/sanitize-html'
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
+type Lang = 'en' | 'hi'
+
 interface LessonTranslation {
   id: string
+  language_code: string
   title: string
   summary: string | null
   content_html: string | null
@@ -71,7 +75,7 @@ interface LessonData {
   duration_minutes: number | null
   video_url: string | null
   module_id: string
-  translation: LessonTranslation | null
+  translations: LessonTranslation[]
 }
 
 interface QuestionOptionText {
@@ -88,6 +92,7 @@ interface QuestionOption {
 }
 
 interface QuestionTranslation {
+  id: string
   language_code: string
   question_text: string
   explanation: string | null
@@ -127,38 +132,42 @@ const TYPE_LABEL: Record<string, string> = {
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 
-function pickEnTranslation(
+function pickTranslation(
   q: QuestionData,
+  lang: Lang,
 ): QuestionTranslation | null {
   if (!q.translations || q.translations.length === 0) return null
   return (
-    q.translations.find((t) => t.language_code === 'en') ??
+    q.translations.find((t) => t.language_code === lang) ??
     q.translations[0] ??
     null
   )
 }
 
-function optionEnText(text: QuestionOption['text']): string {
+function optionText(
+  text: QuestionOption['text'],
+  lang: Lang,
+): string {
   if (!text) return ''
   if (typeof text === 'string') {
     try {
       const parsed = JSON.parse(text) as QuestionOptionText
-      return parsed.en ?? ''
+      return parsed[lang] ?? ''
     } catch {
       return text
     }
   }
-  return text.en ?? ''
+  return text[lang] ?? ''
 }
 
 function genSlug(prefix: 'mcq' | 'qna'): string {
   return `${prefix}-${Date.now().toString(36)}`
 }
 
-function questionExcerpt(q: QuestionData): string {
-  const en = pickEnTranslation(q)
-  if (!en || !en.question_text) return 'Untitled question'
-  const text = en.question_text.replace(/<[^>]*>/g, '').trim()
+function questionExcerpt(q: QuestionData, lang: Lang = 'en'): string {
+  const t = pickTranslation(q, lang)
+  if (!t || !t.question_text) return 'Untitled question'
+  const text = t.question_text.replace(/<[^>]*>/g, '').trim()
   return text.length > 0 ? text : 'Untitled question'
 }
 
@@ -173,14 +182,29 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
   const [lesson, setLesson] = useState<LessonData | null>(null)
   const [questions, setQuestions] = useState<QuestionData[]>([])
 
-  // Section 1 — Lesson details form state
-  const [title, setTitle] = useState('')
-  const [summary, setSummary] = useState('')
+  // Active language for the editor — drives which translation's title /
+  // summary / content_html / question text the forms bind to.
+  const [lang, setLang] = useState<Lang>('en')
+
+  // Per-language translation state (title, summary, content_html) keyed by lang.
+  // We keep EN + HI both in memory so switching tabs doesn't lose edits.
+  interface TransFormState {
+    id: string | null // null = translation row doesn't exist yet (will be created on save)
+    title: string
+    summary: string
+    contentHtml: string
+    status: string
+  }
+  const [transStates, setTransStates] = useState<Record<Lang, TransFormState>>({
+    en: { id: null, title: '', summary: '', contentHtml: '', status: 'draft' },
+    hi: { id: null, title: '', summary: '', contentHtml: '', status: 'draft' },
+  })
+  // Track which languages have a translation row already (for "Add Hindi" CTA).
+  const [langExists, setLangExists] = useState<Record<Lang, boolean>>({ en: false, hi: false })
+
+  // Shared (language-agnostic) lesson core fields.
   const [videoUrl, setVideoUrl] = useState('')
   const [durationMinutes, setDurationMinutes] = useState<number | ''>('')
-
-  // Section 2 — Content state
-  const [contentHtml, setContentHtml] = useState('')
 
   // Section 3 + 4 — Dialog open states
   const [mcqDialogOpen, setMcqDialogOpen] = useState(false)
@@ -200,6 +224,13 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
     [questions],
   )
 
+  // The translation currently bound to the form fields (read-only view).
+  const activeTrans = transStates[lang]
+
+  function patchTransState(l: Lang, patch: Partial<TransFormState>) {
+    setTransStates((prev) => ({ ...prev, [l]: { ...prev[l], ...patch } }))
+  }
+
   const loadLesson = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/lessons/${lessonId}`, {
@@ -210,11 +241,31 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
         const data = json.data ?? null
         setLesson(data)
         if (data) {
-          setTitle(data.translation?.title ?? '')
-          setSummary(data.translation?.summary ?? '')
           setVideoUrl(data.video_url ?? '')
           setDurationMinutes(data.duration_minutes ?? '')
-          setContentHtml(data.translation?.content_html ?? '')
+
+          const enT = data.translations.find((t) => t.language_code === 'en')
+          const hiT = data.translations.find((t) => t.language_code === 'hi')
+          setTransStates({
+            en: {
+              id: enT?.id ?? null,
+              title: enT?.title ?? '',
+              summary: enT?.summary ?? '',
+              contentHtml: enT?.content_html ?? '',
+              status: enT?.status ?? 'draft',
+            },
+            hi: {
+              id: hiT?.id ?? null,
+              title: hiT?.title ?? '',
+              summary: hiT?.summary ?? '',
+              contentHtml: hiT?.content_html ?? '',
+              status: hiT?.status ?? 'draft',
+            },
+          })
+          setLangExists({
+            en: Boolean(enT),
+            hi: Boolean(hiT),
+          })
         }
       } else if (res.status === 401 || res.status === 403) {
         toast({
@@ -259,15 +310,36 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
 
   function saveLessonDetails() {
     startTransition(async () => {
-      if (!lesson?.translation?.id) {
+      if (!lesson) {
         toast({
           title: 'Cannot save',
-          description: 'Lesson translation not loaded yet.',
+          description: 'Lesson not loaded yet.',
+          variant: 'destructive',
+        })
+        return
+      }
+      const state = transStates[lang]
+      if (!state.title.trim()) {
+        toast({
+          title: 'Missing title',
+          description: 'Please provide a lesson title.',
           variant: 'destructive',
         })
         return
       }
       try {
+        const translationBody: Record<string, unknown> = state.id
+          ? {
+              id: state.id,
+              title: state.title,
+              summary: state.summary || null,
+            }
+          : {
+              language_code: lang,
+              lesson_id: lessonId,
+              title: state.title,
+              summary: state.summary || null,
+            }
         const res = await fetch(`/api/admin/lessons/${lessonId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -277,14 +349,13 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
               duration_minutes:
                 durationMinutes === '' ? null : Number(durationMinutes),
             },
-            translation: {
-              id: lesson.translation.id,
-              title,
-              summary: summary || null,
-            },
+            translation: translationBody,
           }),
         })
-        const data = (await res.json()) as { error?: string }
+        const data = (await res.json()) as {
+          error?: string
+          data?: { translation?: { id?: string } }
+        }
         if (!res.ok) {
           toast({
             title: 'Error',
@@ -293,7 +364,19 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
           })
           return
         }
-        toast({ title: 'Saved', description: 'Lesson details updated.' })
+        // Capture the new translation id (needed for subsequent updates).
+        const newId = data.data?.translation?.id
+        if (newId) {
+          patchTransState(lang, { id: newId })
+        }
+        setLangExists((prev) => ({ ...prev, [lang]: true }))
+        toast({
+          title: 'Saved',
+          description:
+            lang === 'hi'
+              ? 'Hindi lesson details saved.'
+              : 'English lesson details saved.',
+        })
         router.refresh()
       } catch {
         toast({
@@ -307,26 +390,33 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
 
   function saveContent() {
     startTransition(async () => {
-      if (!lesson?.translation?.id) {
+      const state = transStates[lang]
+      if (!lesson) {
         toast({
           title: 'Cannot save',
-          description: 'Lesson translation not loaded yet.',
+          description: 'Lesson not loaded yet.',
           variant: 'destructive',
         })
         return
       }
       try {
+        const translationBody: Record<string, unknown> = state.id
+          ? { id: state.id, content_html: state.contentHtml }
+          : {
+              language_code: lang,
+              lesson_id: lessonId,
+              content_html: state.contentHtml,
+              title: state.title || 'Untitled',
+            }
         const res = await fetch(`/api/admin/lessons/${lessonId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            translation: {
-              id: lesson.translation.id,
-              content_html: contentHtml,
-            },
-          }),
+          body: JSON.stringify({ translation: translationBody }),
         })
-        const data = (await res.json()) as { error?: string }
+        const data = (await res.json()) as {
+          error?: string
+          data?: { translation?: { id?: string } }
+        }
         if (!res.ok) {
           toast({
             title: 'Error',
@@ -335,7 +425,16 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
           })
           return
         }
-        toast({ title: 'Saved', description: 'Lesson content updated.' })
+        const newId = data.data?.translation?.id
+        if (newId) {
+          patchTransState(lang, { id: newId })
+        }
+        setLangExists((prev) => ({ ...prev, [lang]: true }))
+        toast({
+          title: 'Saved',
+          description:
+            lang === 'hi' ? 'Hindi content saved.' : 'English content saved.',
+        })
         router.refresh()
       } catch {
         toast({
@@ -452,32 +551,79 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
         <p className="text-muted-foreground text-sm mt-1">/{lesson.slug}</p>
       </div>
 
+      {/* Language selector — applies to all sections below */}
+      <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2">
+        <span className="text-xs font-medium text-muted-foreground uppercase">Language</span>
+        <Tabs value={lang} onValueChange={(v) => setLang(v as Lang)}>
+          <TabsList className="h-8">
+            <TabsTrigger value="en" className="text-xs h-6 px-3">
+              English
+            </TabsTrigger>
+            <TabsTrigger value="hi" className="text-xs h-6 px-3">
+              हिन्दी (Hindi)
+              {langExists.hi ? (
+                <span className="ml-1 text-green-600">✓</span>
+              ) : null}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <span className="text-xs text-muted-foreground">
+          {lang === 'en'
+            ? 'Editing English translation'
+            : langExists.hi
+              ? 'Editing Hindi translation'
+              : 'No Hindi translation yet — fill in the fields and save to create it.'}
+        </span>
+      </div>
+
       {/* Section 1 — Lesson details */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Lesson details</CardTitle>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-base">
+            Lesson details
+            <span className="ml-2 text-xs font-normal text-muted-foreground uppercase">
+              {lang}
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Lesson title"
-            />
-          </div>
+          {lang === 'hi' && !langExists.hi ? (
+            <div className="rounded-md border border-dashed bg-muted/20 p-4 text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                No Hindi translation yet. Add one to make this lesson available in Hindi.
+              </p>
+              <Button
+                size="sm"
+                onClick={() => setLangExists((p) => ({ ...p, hi: true }))}
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Add Hindi translation
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={activeTrans.title}
+                  onChange={(e) => patchTransState(lang, { title: e.target.value })}
+                  placeholder={lang === 'hi' ? 'पाठ का शीर्षक' : 'Lesson title'}
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="summary">Summary</Label>
-            <Textarea
-              id="summary"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="A brief summary shown above the lesson content."
-              className="min-h-[80px]"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="summary">Summary</Label>
+                <Textarea
+                  id="summary"
+                  value={activeTrans.summary}
+                  onChange={(e) => patchTransState(lang, { summary: e.target.value })}
+                  placeholder="A brief summary shown above the lesson content."
+                  className="min-h-[80px]"
+                />
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -514,14 +660,14 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
           <div className="flex flex-wrap gap-2 pt-2">
             <Button
               onClick={saveLessonDetails}
-              disabled={isPending || !title.trim()}
+              disabled={isPending || !activeTrans.title.trim()}
             >
               {isPending ? (
                 <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
               ) : (
                 <Save className="h-4 w-4 mr-1.5" />
               )}
-              Save changes
+              Save {lang === 'hi' ? 'Hindi' : 'English'} details
             </Button>
             {lesson.status !== 'published' && (
               <Button
@@ -541,14 +687,19 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle className="text-base">Lesson content</CardTitle>
+            <CardTitle className="text-base">
+              Lesson content
+              <span className="ml-2 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
+            </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               Write the rich-text body of the lesson (HTML).
             </p>
           </div>
           <Button
             onClick={saveContent}
-            disabled={isPending || !lesson.translation?.id}
+            disabled={isPending || (lang === 'hi' && !langExists.hi)}
             size="sm"
           >
             {isPending ? (
@@ -560,10 +711,15 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
           </Button>
         </CardHeader>
         <CardContent>
-          {lesson.translation?.id ? (
+          {lang === 'hi' && !langExists.hi ? (
+            <p className="text-sm text-muted-foreground">
+              Add a Hindi translation in the Lesson details section above first;
+              then you can write Hindi content here.
+            </p>
+          ) : activeTrans.id || lang === 'en' ? (
             <RichTextEditor
-              value={contentHtml}
-              onChange={setContentHtml}
+              value={activeTrans.contentHtml}
+              onChange={(html) => patchTransState(lang, { contentHtml: html })}
               placeholder="Write the lesson content…"
               minHeight={360}
             />
@@ -582,6 +738,9 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
           <div>
             <CardTitle className="text-base">
               Multiple-choice questions
+              <span className="ml-2 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               {mcqs.length} attached MCQ{mcqs.length === 1 ? '' : 's'}.
@@ -609,6 +768,7 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
                 key={q.id}
                 question={q}
                 kind="mcq"
+                lang={lang}
                 disabled={isPending}
                 onEdit={() => {
                   setMcqEditing(q)
@@ -627,6 +787,9 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
           <div>
             <CardTitle className="text-base">
               Descriptive questions (Q&amp;A)
+              <span className="ml-2 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               {qnas.length} attached QNA{qnas.length === 1 ? '' : 's'}.
@@ -654,6 +817,7 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
                 key={q.id}
                 question={q}
                 kind="qna"
+                lang={lang}
                 disabled={isPending}
                 onEdit={() => {
                   setQnaEditing(q)
@@ -675,6 +839,7 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
         }}
         lessonId={lessonId}
         editing={mcqEditing}
+        lang={lang}
         onSaved={onQuestionDialogSaved}
       />
 
@@ -687,6 +852,7 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
         }}
         lessonId={lessonId}
         editing={qnaEditing}
+        lang={lang}
         onSaved={onQuestionDialogSaved}
       />
     </div>
@@ -698,6 +864,7 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
 interface QuestionRowProps {
   question: QuestionData
   kind: 'mcq' | 'qna'
+  lang: Lang
   disabled: boolean
   onEdit: () => void
   onDelete: () => void
@@ -706,14 +873,15 @@ interface QuestionRowProps {
 function QuestionRow({
   question,
   kind,
+  lang,
   disabled,
   onEdit,
   onDelete,
 }: QuestionRowProps) {
   const [openAnswer, setOpenAnswer] = useState(false)
-  const en = pickEnTranslation(question)
-  const questionHtml = sanitizeHtml(en?.question_text ?? '')
-  const modelAnswerHtml = sanitizeHtml(en?.model_answer ?? '')
+  const t = pickTranslation(question, lang)
+  const questionHtml = sanitizeHtml(t?.question_text ?? '')
+  const modelAnswerHtml = sanitizeHtml(t?.model_answer ?? '')
   const options = (question.options ?? [])
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -730,6 +898,11 @@ function QuestionRow({
             <span className="text-[11px] text-muted-foreground">
               /{question.slug}
             </span>
+            {t && t.language_code !== lang && (
+              <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                fallback: {t.language_code}
+              </Badge>
+            )}
           </div>
           {questionHtml ? (
             <div
@@ -738,7 +911,7 @@ function QuestionRow({
             />
           ) : (
             <p className="text-sm text-muted-foreground italic">
-              (empty question text)
+              (no {lang} translation yet — click Edit to add one)
             </p>
           )}
           {kind === 'mcq' && options.length > 0 && (
@@ -755,7 +928,7 @@ function QuestionRow({
                   <span className="mt-0.5">
                     {o.is_correct ? '✓' : '•'}
                   </span>
-                  <span>{optionEnText(o.text) || '(empty)'}</span>
+                  <span>{optionText(o.text, lang) || '(empty)'}</span>
                 </li>
               ))}
             </ul>
@@ -819,6 +992,7 @@ function QuestionRow({
 interface OptionForm {
   id?: string // existing option id; undefined for new
   textEn: string
+  textHi: string
   isCorrect: boolean
 }
 
@@ -827,6 +1001,7 @@ interface McqDialogProps {
   onOpenChange: (open: boolean) => void
   lessonId: string
   editing: QuestionData | null
+  lang: Lang
   onSaved: () => Promise<void> | void
 }
 
@@ -835,65 +1010,62 @@ function McqDialog({
   onOpenChange,
   lessonId,
   editing,
+  lang,
   onSaved,
 }: McqDialogProps) {
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
-  const [loadingMeta, setLoadingMeta] = useState(false)
 
   const [questionType, setQuestionType] = useState<McqType>('single_choice')
   const [questionText, setQuestionText] = useState('')
   const [explanation, setExplanation] = useState('')
   const [options, setOptions] = useState<OptionForm[]>([])
+  // Tracks the translation id for the active language (null while loading or
+  // if the translation doesn't exist yet — in which case we upsert on save).
   const [translationId, setTranslationId] = useState<string | null>(null)
+  const [translationExists, setTranslationExists] = useState(true)
 
-  // Reset / hydrate state whenever the dialog opens or target changes.
+  // Reset / hydrate state whenever the dialog opens, the target question
+  // changes, or the active language changes.
   useEffect(() => {
     if (!open) return
     if (editing) {
-      const en = pickEnTranslation(editing)
+      const t = pickTranslation(editing, lang)
       setQuestionType(
         (MCQ_TYPES as readonly string[]).includes(editing.question_type)
           ? (editing.question_type as McqType)
           : 'single_choice',
       )
-      setQuestionText(en?.question_text ?? '')
-      setExplanation(en?.explanation ?? '')
+      setQuestionText(t?.question_text ?? '')
+      setExplanation(t?.explanation ?? '')
       setOptions(
         (editing.options ?? [])
           .slice()
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((o) => ({
             id: o.id,
-            textEn: optionEnText(o.text),
+            textEn: optionText(o.text, 'en'),
+            textHi: optionText(o.text, 'hi'),
             isCorrect: o.is_correct,
           })),
       )
-      setTranslationId(null)
-      // Fetch the full question to get the translation id (not returned by the
-      // lesson-questions list endpoint).
-      setLoadingMeta(true)
-      fetch(`/api/admin/questions/${editing.id}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((json: { data?: { translation?: { id?: string } } } | null) => {
-          const tid = json?.data?.translation?.id
-          if (tid) setTranslationId(tid)
-        })
-        .catch(() => {
-          /* ignore — Save will be disabled */
-        })
-        .finally(() => setLoadingMeta(false))
+      // Find the matching translation id directly from the list payload —
+      // avoids an extra fetch to /api/admin/questions/[id].
+      const matchT = editing.translations.find((x) => x.language_code === lang)
+      setTranslationId(matchT?.id ?? null)
+      setTranslationExists(Boolean(matchT))
     } else {
       setQuestionType('single_choice')
       setQuestionText('')
       setExplanation('')
       setOptions([
-        { textEn: '', isCorrect: false },
-        { textEn: '', isCorrect: true },
+        { textEn: '', textHi: '', isCorrect: false },
+        { textEn: '', textHi: '', isCorrect: true },
       ])
       setTranslationId(null)
+      setTranslationExists(true)
     }
-  }, [open, editing])
+  }, [open, editing, lang])
 
   function updateOption(idx: number, patch: Partial<OptionForm>) {
     setOptions((prev) =>
@@ -901,7 +1073,7 @@ function McqDialog({
     )
   }
   function addOption() {
-    setOptions((prev) => [...prev, { textEn: '', isCorrect: false }])
+    setOptions((prev) => [...prev, { textEn: '', textHi: '', isCorrect: false }])
   }
   function removeOption(idx: number) {
     setOptions((prev) => prev.filter((_, i) => i !== idx))
@@ -918,19 +1090,36 @@ function McqDialog({
         return
       }
       const cleanOptions = options
-        .map((o) => ({ ...o, textEn: o.textEn.trim() }))
-        .filter((o) => o.textEn.length > 0)
+        .map((o) => ({
+          ...o,
+          textEn: o.textEn.trim(),
+          textHi: o.textHi.trim(),
+        }))
+        // Keep options that have EITHER an EN or HI label (so HI-only options
+        // aren't dropped when the dialog was opened from the HI tab).
+        .filter((o) => o.textEn.length > 0 || o.textHi.length > 0)
 
       try {
         if (editing) {
-          if (!translationId) {
-            toast({
-              title: 'Not ready',
-              description:
-                'Still loading question metadata. Try again in a moment.',
-              variant: 'destructive',
-            })
-            return
+          // Build the translation PATCH body.
+          // - If translation already exists in this lang → update by id.
+          // - If it doesn't exist yet (HI tab on a question with no HI row)
+          //   → send question_id + language_code so the server upserts.
+          let translationBody: Record<string, unknown>
+          if (translationId) {
+            translationBody = {
+              id: translationId,
+              question_text: questionText,
+              explanation: explanation || null,
+            }
+          } else {
+            translationBody = {
+              id: 'new', // route requires a string id; the service detects upsert path
+              question_id: editing.id,
+              language_code: lang,
+              question_text: questionText,
+              explanation: explanation || null,
+            }
           }
           // 1) PATCH the translation (question_text + explanation).
           const patchRes = await fetch(
@@ -940,11 +1129,7 @@ function McqDialog({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 question_type: questionType,
-                translation: {
-                  id: translationId,
-                  question_text: questionText,
-                  explanation: explanation || null,
-                },
+                translation: translationBody,
               }),
             },
           )
@@ -959,6 +1144,8 @@ function McqDialog({
           }
 
           // 2) Sync options: PATCH existing, POST new, DELETE removed.
+          //    Always send the FULL text { en, hi } so the language we're
+          //    not editing right now is preserved server-side.
           const keptIds = new Set(
             cleanOptions.filter((o) => o.id).map((o) => o.id as string),
           )
@@ -978,7 +1165,7 @@ function McqDialog({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   option_id: opt.id,
-                  text: { en: opt.textEn },
+                  text: { en: opt.textEn, hi: opt.textHi || undefined },
                   is_correct: opt.isCorrect,
                 }),
               })
@@ -987,16 +1174,23 @@ function McqDialog({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  text: { en: opt.textEn },
+                  text: { en: opt.textEn, hi: opt.textHi || undefined },
                   is_correct: opt.isCorrect,
                 }),
               })
             }
           }
 
-          toast({ title: 'Saved', description: 'MCQ updated.' })
+          toast({
+            title: 'Saved',
+            description:
+              lang === 'hi' ? 'MCQ Hindi translation saved.' : 'MCQ updated.',
+          })
         } else {
-          // CREATE flow
+          // CREATE flow — always creates the EN translation (server-side
+          // behaviour). If the editor is currently on the HI tab, we still
+          // create with EN, and the user can use Edit + HI tab afterwards
+          // to add the Hindi version.
           const createRes = await fetch('/api/admin/questions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1007,7 +1201,7 @@ function McqDialog({
               question_text: questionText,
               explanation: explanation || '',
               options: cleanOptions.map((o) => ({
-                text: { en: o.textEn },
+                text: { en: o.textEn, hi: o.textHi || undefined },
                 is_correct: o.isCorrect,
               })),
             }),
@@ -1037,9 +1231,8 @@ function McqDialog({
 
   const canSave =
     !isPending &&
-    !loadingMeta &&
     questionText.trim().length > 0 &&
-    (editing ? translationId !== null : true)
+    (editing ? true : true)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1050,12 +1243,29 @@ function McqDialog({
           </DialogTitle>
           <DialogDescription>
             {editing
-              ? 'Update the question text, options, and answer explanation.'
+              ? `Update the question text, options, and answer explanation (${lang.toUpperCase()} translation).`
               : 'Create a new multiple-choice question attached to this lesson.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Language banner — shows which translation is being edited */}
+          {editing && (
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+              {translationExists ? (
+                <span>
+                  Editing <strong>{lang.toUpperCase()}</strong> translation.
+                  Switch language via the lesson editor's tabs at the top.
+                </span>
+              ) : (
+                <span className="text-amber-700 dark:text-amber-400">
+                  No <strong>{lang.toUpperCase()}</strong> translation yet —
+                  saving will create it.
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Question type</Label>
             <Select
@@ -1076,7 +1286,12 @@ function McqDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Question text</Label>
+            <Label>
+              Question text
+              <span className="ml-1 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
+            </Label>
             <Textarea
               value={questionText}
               onChange={(e) => setQuestionText(e.target.value)}
@@ -1088,7 +1303,12 @@ function McqDialog({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Options</Label>
+              <Label>
+                Options
+                <span className="ml-1 text-xs font-normal text-muted-foreground uppercase">
+                  {lang}
+                </span>
+              </Label>
               <Button
                 type="button"
                 size="sm"
@@ -1126,11 +1346,16 @@ function McqDialog({
                     Correct
                   </Label>
                   <Input
-                    value={opt.textEn}
+                    value={lang === 'hi' ? opt.textHi : opt.textEn}
                     onChange={(e) =>
-                      updateOption(idx, { textEn: e.target.value })
+                      updateOption(
+                        idx,
+                        lang === 'hi'
+                          ? { textHi: e.target.value }
+                          : { textEn: e.target.value },
+                      )
                     }
-                    placeholder={`Option ${idx + 1}`}
+                    placeholder={`Option ${idx + 1} (${lang})`}
                     disabled={isPending}
                   />
                   <Button
@@ -1155,7 +1380,12 @@ function McqDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Answer explanation (optional)</Label>
+            <Label>
+              Answer explanation (optional)
+              <span className="ml-1 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
+            </Label>
             <p className="text-xs text-muted-foreground -mt-1">
               Shown after the learner answers — explain why the correct option
               is right (supports formatting).
@@ -1198,6 +1428,7 @@ interface QnaDialogProps {
   onOpenChange: (open: boolean) => void
   lessonId: string
   editing: QuestionData | null
+  lang: Lang
   onSaved: () => Promise<void> | void
 }
 
@@ -1206,40 +1437,33 @@ function QnaDialog({
   onOpenChange,
   lessonId,
   editing,
+  lang,
   onSaved,
 }: QnaDialogProps) {
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
-  const [loadingMeta, setLoadingMeta] = useState(false)
 
   const [questionText, setQuestionText] = useState('')
   const [modelAnswer, setModelAnswer] = useState('')
   const [translationId, setTranslationId] = useState<string | null>(null)
+  const [translationExists, setTranslationExists] = useState(true)
 
   useEffect(() => {
     if (!open) return
     if (editing) {
-      const en = pickEnTranslation(editing)
-      setQuestionText(en?.question_text ?? '')
-      setModelAnswer(en?.model_answer ?? '')
-      setTranslationId(null)
-      setLoadingMeta(true)
-      fetch(`/api/admin/questions/${editing.id}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((json: { data?: { translation?: { id?: string } } } | null) => {
-          const tid = json?.data?.translation?.id
-          if (tid) setTranslationId(tid)
-        })
-        .catch(() => {
-          /* ignore */
-        })
-        .finally(() => setLoadingMeta(false))
+      const t = pickTranslation(editing, lang)
+      setQuestionText(t?.question_text ?? '')
+      setModelAnswer(t?.model_answer ?? '')
+      const matchT = editing.translations.find((x) => x.language_code === lang)
+      setTranslationId(matchT?.id ?? null)
+      setTranslationExists(Boolean(matchT))
     } else {
       setQuestionText('')
       setModelAnswer('')
       setTranslationId(null)
+      setTranslationExists(true)
     }
-  }, [open, editing])
+  }, [open, editing, lang])
 
   function save() {
     startTransition(async () => {
@@ -1253,25 +1477,26 @@ function QnaDialog({
       }
       try {
         if (editing) {
-          if (!translationId) {
-            toast({
-              title: 'Not ready',
-              description:
-                'Still loading question metadata. Try again in a moment.',
-              variant: 'destructive',
-            })
-            return
+          let translationBody: Record<string, unknown>
+          if (translationId) {
+            translationBody = {
+              id: translationId,
+              question_text: questionText,
+              model_answer: modelAnswer || null,
+            }
+          } else {
+            translationBody = {
+              id: 'new',
+              question_id: editing.id,
+              language_code: lang,
+              question_text: questionText,
+              model_answer: modelAnswer || null,
+            }
           }
           const res = await fetch(`/api/admin/questions/${editing.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              translation: {
-                id: translationId,
-                question_text: questionText,
-                model_answer: modelAnswer || null,
-              },
-            }),
+            body: JSON.stringify({ translation: translationBody }),
           })
           const json = (await res.json()) as { error?: string }
           if (!res.ok) {
@@ -1282,7 +1507,11 @@ function QnaDialog({
             })
             return
           }
-          toast({ title: 'Saved', description: 'QNA updated.' })
+          toast({
+            title: 'Saved',
+            description:
+              lang === 'hi' ? 'QNA Hindi translation saved.' : 'QNA updated.',
+          })
         } else {
           const res = await fetch('/api/admin/questions', {
             method: 'POST',
@@ -1320,11 +1549,7 @@ function QnaDialog({
     })
   }
 
-  const canSave =
-    !isPending &&
-    !loadingMeta &&
-    questionText.trim().length > 0 &&
-    (editing ? translationId !== null : true)
+  const canSave = !isPending && questionText.trim().length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1335,14 +1560,35 @@ function QnaDialog({
           </DialogTitle>
           <DialogDescription>
             {editing
-              ? 'Update the question text and model answer.'
+              ? `Update the question text and model answer (${lang.toUpperCase()} translation).`
               : 'Create a new descriptive (Q&amp;A) question attached to this lesson.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {editing && (
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+              {translationExists ? (
+                <span>
+                  Editing <strong>{lang.toUpperCase()}</strong> translation.
+                  Switch language via the lesson editor's tabs at the top.
+                </span>
+              ) : (
+                <span className="text-amber-700 dark:text-amber-400">
+                  No <strong>{lang.toUpperCase()}</strong> translation yet —
+                  saving will create it.
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
-            <Label>Question text</Label>
+            <Label>
+              Question text
+              <span className="ml-1 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
+            </Label>
             <RichTextEditor
               value={questionText}
               onChange={setQuestionText}
@@ -1352,7 +1598,12 @@ function QnaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Model answer</Label>
+            <Label>
+              Model answer
+              <span className="ml-1 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
+            </Label>
             <RichTextEditor
               value={modelAnswer}
               onChange={setModelAnswer}

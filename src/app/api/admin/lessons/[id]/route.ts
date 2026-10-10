@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server'
-import { adminGetLesson, adminUpdateLesson, adminUpdateLessonTranslation, adminPublishLesson, adminDeleteLesson } from '@/lib/admin/content-service'
+import { adminGetLesson, adminUpdateLesson, adminUpdateLessonTranslation, adminUpsertLessonTranslation, adminPublishLesson, adminDeleteLesson } from '@/lib/admin/content-service'
 
 /**
  * /api/admin/lessons/[id]
  *
- * GET    — fetch the lesson (incl. draft) + EN translation (incl. content_html).
+ * GET    — fetch the lesson (incl. draft) + ALL translations (en/hi/…)
+ *          as an array under `translations`. The editor uses this to render
+ *          its EN/HI tabs without a second round-trip.
  * PATCH  — update lesson core fields (slug, sort_order, status, duration_minutes,
  *          video_url) AND/OR translation (title, summary, content_html):
  *            body: { lesson?: {...core}, translation?: {...trans} }
+ *          Two translation shapes are accepted:
+ *            (a) translation: { id, ...fields }    → update by translation id
+ *            (b) translation: { lesson_id?, language_code, ...fields }
+ *                → upsert by (lesson_id, language_code). If `lesson_id` is
+ *                omitted, the path's `id` param is used as lesson_id.
+ *          This lets the editor save the Hindi tab the first time, when no
+ *          HI translation row exists yet.
  * POST   ?action=publish  → publish the lesson.
  * DELETE — delete the lesson (cascades).
  */
@@ -55,15 +64,35 @@ export async function PATCH(
   }
 
   // Translation (title, summary, content_html, status)
+  // Two flows:
+  //   (a) by translation.id           → existing translation update
+  //   (b) by language_code (upsert)  → create-or-update translation row
+  //       for the given lesson. `lesson_id` defaults to the path `id`.
   const translation = body.translation as Record<string, unknown> | undefined
-  if (translation && typeof translation.id === 'string') {
-    const { id: transId, ...transFields } = translation
-    const { data, error } = await adminUpdateLessonTranslation(
-      transId,
-      transFields as { title?: string; summary?: string | null; content_html?: string | null; status?: string },
-    )
-    if (error) return authError(error)
-    result.translation = data
+  if (translation) {
+    const transLang = typeof translation.language_code === 'string' ? translation.language_code : null
+    const transId = typeof translation.id === 'string' ? translation.id : null
+
+    if (transId) {
+      const { id: _transId, ...transFields } = translation
+      const { data, error } = await adminUpdateLessonTranslation(
+        transId,
+        transFields as { title?: string; summary?: string | null; content_html?: string | null; status?: string },
+      )
+      if (error) return authError(error)
+      result.translation = data
+    } else if (transLang) {
+      const lessonIdForTrans =
+        typeof translation.lesson_id === 'string' ? translation.lesson_id : id
+      const { language_code: _lc, lesson_id: _li, ...transFields } = translation
+      const { data, error } = await adminUpsertLessonTranslation(
+        lessonIdForTrans,
+        transLang,
+        transFields as { title?: string; summary?: string | null; content_html?: string | null; status?: string },
+      )
+      if (error) return authError(error)
+      result.translation = data
+    }
   }
 
   if (!result.lesson && !result.translation) {

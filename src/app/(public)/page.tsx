@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { Button } from '@/components/ui/button'
 import { CourseCard } from '@/components/shared'
 import { JsonLdWebsite } from '@/components/seo/json-ld'
 import { TypingHeading } from '@/components/public/typing-heading'
+import { LogoutToast } from '@/components/public/logout-toast'
 import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
 import { safeFetch } from '@/lib/safe-fetch'
 import { getLocale, localePath } from '@/lib/i18n/locale'
@@ -26,6 +28,10 @@ export default async function Home() {
   return (
     <>
       <JsonLdWebsite />
+      {/* Logout toast (detects ?logged_out=1 from the logout redirect) */}
+      <Suspense fallback={null}>
+        <LogoutToast />
+      </Suspense>
       {/* Hero */}
       <section className="border-b bg-gradient-to-b from-brand-muted/40 to-background">
         <div className="container mx-auto px-4 py-16 text-center space-y-5">

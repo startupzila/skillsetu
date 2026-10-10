@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/shared'
 import { safeFetch } from '@/lib/safe-fetch'
-import { Search as SearchIcon, Clock, BarChart3, BookOpen, FileQuestion } from 'lucide-react'
+import { getLocale, localePath } from '@/lib/i18n/locale'
+import { t } from '@/lib/i18n/dictionary'
+import { Search as SearchIcon, Clock, BarChart3, BookOpen, FileQuestion, FolderTree, Building2, FileText } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Search',
-  description: 'Search MioDemy courses, lessons and questions.',
+  description: 'Search MioDemy courses, lessons, skills, centres and PDFs.',
 }
 
 interface PageProps {
@@ -27,31 +29,38 @@ interface PageProps {
 export default async function SearchPage({ searchParams }: PageProps) {
   const { q } = await searchParams
   const query = q ?? ''
+  const lang = await getLocale()
   // Use safeFetch so a Supabase outage doesn't 500 the page — we just
   // render an empty result set with the same UI.
-  const results = query ? await safeFetch(() => search(query, 'en', 20)) : null
+  const results = query ? await safeFetch(() => search(query, lang, 30)) : null
 
-  const typeIcon = {
+  const typeIcon: Record<string, typeof BookOpen> = {
     course: BookOpen,
     lesson: BookOpen,
     question: FileQuestion,
+    skill: FolderTree,
+    centre: Building2,
+    pdf: FileText,
   }
-  const typeLabel = {
-    course: 'Course',
-    lesson: 'Lesson',
-    question: 'Question',
+  const typeLabel: Record<string, string> = {
+    course: lang === 'hi' ? 'कोर्स' : 'Course',
+    lesson: lang === 'hi' ? 'पाठ' : 'Lesson',
+    question: lang === 'hi' ? 'प्रश्न' : 'Question',
+    skill: lang === 'hi' ? 'स्किल' : 'Skill',
+    centre: lang === 'hi' ? 'सेंटर' : 'Centre',
+    pdf: 'PDF',
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <Breadcrumbs
-        items={[{ label: 'Home', href: '/' }, { label: 'Search' }]}
+        items={[{ label: t(lang, 'breadcrumb.home'), href: localePath(lang, '/') }, { label: t(lang, 'nav.search') }]}
       />
 
       <div className="mt-6 mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Search</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t(lang, 'nav.search')}</h1>
         <p className="text-muted-foreground mt-1">
-          Find courses, lessons and practice questions.
+          {lang === 'hi' ? 'कोर्स, पाठ, स्किल, सेंटर और PDF खोजें।' : 'Find courses, lessons, skills, centres and PDFs.'}
         </p>
       </div>
 
@@ -86,11 +95,11 @@ export default async function SearchPage({ searchParams }: PageProps) {
           {results.results.length === 0 ? (
             <EmptyState
               icon={SearchIcon}
-              title="No results found"
-              description={`We couldn't find anything matching “${query}”. Try different keywords or browse our courses.`}
+              title={lang === 'hi' ? 'कोई परिणाम नहीं मिला' : 'No results found'}
+              description={lang === 'hi' ? `"${query}" से मेल खाता कुछ नहीं मिला। अलग कीवर्ड आज़माएं या हमारे कोर्स देखें।` : `We couldn't find anything matching “${query}”. Try different keywords or browse our courses.`}
               action={
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/courses">Browse all courses</Link>
+                  <Link href={localePath(lang, '/courses')}>{lang === 'hi' ? 'सभी कोर्स देखें' : 'Browse all courses'}</Link>
                 </Button>
               }
             />
@@ -148,8 +157,8 @@ export default async function SearchPage({ searchParams }: PageProps) {
       {!query && (
         <EmptyState
           icon={SearchIcon}
-          title="Start typing to search"
-          description="Search across courses, lessons and practice questions."
+          title={lang === 'hi' ? 'खोजने के लिए टाइप करें' : 'Start typing to search'}
+          description={lang === 'hi' ? 'कोर्स, पाठ, स्किल, सेंटर और PDF में खोजें।' : 'Search across courses, lessons, skills, centres and PDFs.'}
         />
       )}
 

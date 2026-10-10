@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from '@/components/ui/dialog'
-import { Plus, Trash2, BookOpen, Pencil, Send, Loader2 } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Plus, Trash2, BookOpen, Pencil, Send, Loader2, Check } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { StatusBadge } from '@/components/shared'
 
@@ -58,8 +59,12 @@ export function CurriculumManager({ courseId, modules: initialModules }: Curricu
   const [addLessonFor, setAddLessonFor] = useState<string | null>(null)
   const [newLessonTitle, setNewLessonTitle] = useState('')
 
+  // Module title inline editor — tracks BOTH EN and HI titles so the editor
+  // can switch tabs without losing unsaved edits in either language.
   const [editingModule, setEditingModule] = useState<string | null>(null)
-  const [editModuleTitle, setEditModuleTitle] = useState('')
+  const [editModuleEn, setEditModuleEn] = useState('')
+  const [editModuleHi, setEditModuleHi] = useState('')
+  const [editModuleHiExists, setEditModuleHiExists] = useState(true) // becomes false when user just enabled HI
 
   function addModule() {
     if (!newModuleTitle.trim()) return
@@ -82,21 +87,27 @@ export function CurriculumManager({ courseId, modules: initialModules }: Curricu
     })
   }
 
-  function saveModuleTitle(moduleId: string) {
-    if (!editModuleTitle.trim()) return
+  function saveModuleTitle(moduleId: string, lang: 'en' | 'hi') {
+    const title = (lang === 'en' ? editModuleEn : editModuleHi).trim()
+    if (!title) return
     startTransition(async () => {
       const res = await fetch(`/api/admin/modules/${moduleId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ translation: { lang: 'en', title: editModuleTitle } }),
+        body: JSON.stringify({ translation: { lang, title } }),
       })
       const data = await res.json()
       if (!res.ok) {
         toast({ title: 'Error', description: data.error, variant: 'destructive' })
         return
       }
-      toast({ title: 'Saved', description: 'Module title updated.' })
-      setEditingModule(null)
+      toast({
+        title: 'Saved',
+        description: lang === 'hi' ? 'Hindi module title saved.' : 'English module title saved.',
+      })
+      if (lang === 'hi') setEditModuleHiExists(true)
+      // Keep the editor open so the user can switch tabs and save the other
+      // language too. Refresh server data underneath.
       router.refresh()
     })
   }
@@ -216,6 +227,7 @@ export function CurriculumManager({ courseId, modules: initialModules }: Curricu
           <div className="space-y-4">
             {modules.map((mod, mIdx) => {
               const modEn = mod.translations.find((t) => t.language_code === 'en')
+              const modHi = mod.translations.find((t) => t.language_code === 'hi')
               return (
                 <div key={mod.id} className="rounded-lg border">
                   <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b">
@@ -224,26 +236,86 @@ export function CurriculumManager({ courseId, modules: initialModules }: Curricu
                         {mIdx + 1}
                       </span>
                       {editingModule === mod.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editModuleTitle}
-                            onChange={(e) => setEditModuleTitle(e.target.value)}
-                            className="h-7 w-56"
-                            autoFocus
-                          />
-                          <Button size="sm" className="h-7" onClick={() => saveModuleTitle(mod.id)} disabled={isPending}>
-                            Save
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditingModule(null)}>
-                            Cancel
-                          </Button>
+                        <div className="flex flex-col gap-2 w-full max-w-xl">
+                          <Tabs defaultValue="en">
+                            <TabsList className="h-8">
+                              <TabsTrigger value="en" className="text-xs h-6 px-3">English</TabsTrigger>
+                              <TabsTrigger value="hi" className="text-xs h-6 px-3">
+                                हिन्दी (Hindi)
+                                {modHi ? (
+                                  <Check className="h-3 w-3 ml-1 text-green-600" />
+                                ) : null}
+                              </TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="en" className="mt-2">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={editModuleEn}
+                                  onChange={(e) => setEditModuleEn(e.target.value)}
+                                  className="h-7 w-56"
+                                  placeholder="Module title (English)"
+                                  autoFocus
+                                />
+                                <Button
+                                  size="sm"
+                                  className="h-7"
+                                  onClick={() => saveModuleTitle(mod.id, 'en')}
+                                  disabled={isPending || !editModuleEn.trim()}
+                                >
+                                  {isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                                  Save EN
+                                </Button>
+                              </div>
+                            </TabsContent>
+                            <TabsContent value="hi" className="mt-2">
+                              {!editModuleHiExists ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <span>No Hindi translation yet.</span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7"
+                                    onClick={() => setEditModuleHiExists(true)}
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add Hindi
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    value={editModuleHi}
+                                    onChange={(e) => setEditModuleHi(e.target.value)}
+                                    className="h-7 w-56"
+                                    placeholder="मॉड्यूल शीर्षक (हिन्दी)"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="h-7"
+                                    onClick={() => saveModuleTitle(mod.id, 'hi')}
+                                    disabled={isPending || !editModuleHi.trim()}
+                                  >
+                                    {isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                                    Save HI
+                                  </Button>
+                                </div>
+                              )}
+                            </TabsContent>
+                          </Tabs>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditingModule(null)}>
+                              Done
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         <button
                           className="font-medium text-sm hover:text-primary"
                           onClick={() => {
                             setEditingModule(mod.id)
-                            setEditModuleTitle(modEn?.title ?? mod.slug)
+                            setEditModuleEn(modEn?.title ?? mod.slug)
+                            setEditModuleHi(modHi?.title ?? '')
+                            setEditModuleHiExists(Boolean(modHi))
                           }}
                         >
                           {modEn?.title ?? mod.slug}

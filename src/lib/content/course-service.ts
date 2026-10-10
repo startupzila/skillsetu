@@ -116,7 +116,9 @@ export async function getPublishedCourseBySlug(
 ) {
   const supabase = await createServerSupabaseClient()
 
-  // 1. Get the course + translations
+  // Single nested query: course + translations + modules + module_translations
+  // + lessons + lesson_translations + categories — replaces the old N+1 pattern
+  // (was 1 + N_modules + N_modules×N_lessons queries; now 1 query total).
   const { data: course, error: courseErr } = await supabase
     .from('courses')
     .select(
@@ -127,6 +129,24 @@ export async function getPublishedCourseBySlug(
         id, language_code, title, short_description, description,
         learning_outcomes, prerequisites, target_audience, status,
         seo_title, seo_description, seo_keywords, seo_faqs, seo_intro_paragraph
+      ),
+      modules:modules(
+        id, slug, sort_order, status,
+        translations:module_translations(
+          language_code, title, description, status
+        ),
+        lessons:lessons(
+          id, slug, sort_order, lesson_type, duration_minutes, status,
+          translations:lesson_translations(
+            language_code, title, summary, status
+          )
+        )
+      ),
+      course_categories(
+        category:categories(
+          id, slug,
+          translations:category_translations(language_code, name)
+        )
       )
       `,
     )
@@ -138,70 +158,60 @@ export async function getPublishedCourseBySlug(
     return { data: null, error: courseErr.message, code: courseErr.code }
   }
 
-  // 2. Get modules for this course (published only)
-  const { data: modules, error: modErr } = await supabase
-    .from('modules')
-    .select('id, slug, sort_order, status')
-    .eq('course_id', course.id)
-    .eq('status', 'published')
-    .order('sort_order', { ascending: true })
-
-  if (modErr) {
-    return { data: null, error: modErr.message, code: modErr.code }
+  // Filter to published modules + lessons (nested filter happens in JS —
+  // one round-trip vs N+1 queries is a massive win)
+  type RawModule = {
+    id: string
+    slug: string
+    sort_order: number
+    status: string
+    translations: { language_code: string; title: string; description: string | null; status: string }[]
+    lessons: {
+      id: string
+      slug: string
+      sort_order: number
+      lesson_type: string
+      duration_minutes: number | null
+      status: string
+      translations: { language_code: string; title: string; summary: string | null; status: string }[]
+    }[]
   }
 
-  // 3. For each module, get translations + lessons
-  const curriculum: CurriculumModule[] = []
-  for (const mod of modules ?? []) {
-    const [{ data: modTranslations }, { data: lessons }] = await Promise.all([
-      supabase
-        .from('module_translations')
-        .select('language_code, title, description')
-        .eq('module_id', mod.id)
-        .eq('status', 'published'),
-      supabase
-        .from('lessons')
-        .select(
-          'id, slug, sort_order, lesson_type, duration_minutes, status',
-        )
-        .eq('module_id', mod.id)
-        .eq('status', 'published')
-        .order('sort_order', { ascending: true }),
-    ])
-
-    // For each lesson, get translations
-    const lessonsWithTranslations = []
-    for (const lesson of lessons ?? []) {
-      const { data: lessonTrans } = await supabase
-        .from('lesson_translations')
-        .select('language_code, title, summary')
-        .eq('lesson_id', lesson.id)
-        .eq('status', 'published')
-
-      lessonsWithTranslations.push({
-        id: lesson.id,
-        slug: lesson.slug,
-        sort_order: lesson.sort_order,
-        lesson_type: lesson.lesson_type,
-        duration_minutes: lesson.duration_minutes,
-        translations: lessonTrans ?? [],
-      })
-    }
-
-    curriculum.push({
+  const curriculum: CurriculumModule[] = ((course as Record<string, unknown>).modules as RawModule[] ?? [])
+    .filter((m) => m.status === 'published')
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((mod) => ({
       id: mod.id,
       slug: mod.slug,
       sort_order: mod.sort_order,
-      translations: modTranslations ?? [],
-      lessons: lessonsWithTranslations,
-    })
-  }
+      translations: (mod.translations ?? []).filter((t) => t.status === 'published'),
+      lessons: (mod.lessons ?? [])
+        .filter((l) => l.status === 'published')
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((lesson) => ({
+          id: lesson.id,
+          slug: lesson.slug,
+          sort_order: lesson.sort_order,
+          lesson_type: lesson.lesson_type as LessonType,
+          duration_minutes: lesson.duration_minutes,
+          translations: (lesson.translations ?? []).filter((t) => t.status === 'published'),
+        })),
+    }))
+
+  // Extract categories from the nested course_categories join
+  const rawCourseCats = (course as Record<string, unknown>).course_categories as
+    | { category: { id: string; slug: string; translations: { language_code: string; name: string }[] } }[]
+    | undefined
 
   // Filter translations by language if specified
   const result: CourseWithCurriculum = {
-    ...(course as CourseWithTranslation),
+    ...(course as unknown as CourseWithTranslation),
     modules: curriculum,
   }
+
+  // Clean up the raw nested fields that aren't in the type
+  delete (result as Record<string, unknown>).course_categories
+  delete (result as Record<string, unknown>).modules as unknown
 
   if (language) {
     result.translations = result.translations.filter(
@@ -219,17 +229,9 @@ export async function getPublishedCourseBySlug(
     }))
   }
 
-  // Fetch course categories (for breadcrumbs + related)
-  const { data: courseCats } = await supabase
-    .from('course_categories')
-    .select(
-      `category:categories(id, slug, translations:category_translations(language_code, name))`,
-    )
-    .eq('course_id', course.id)
-
-  // Attach categories (typed loosely to avoid TS friction)
+  // Attach categories (for breadcrumbs + related)
   ;(result as Record<string, unknown>).categories =
-    (courseCats ?? []).map((cc: { category: unknown }) => cc.category)
+    (rawCourseCats ?? []).map((cc) => cc.category)
 
   return { data: result, error: null, code: null }
 }

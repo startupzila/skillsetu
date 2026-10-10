@@ -372,7 +372,9 @@ export async function adminUpdateModule(moduleId: string, updates: Record<string
   return { data, error: null }
 }
 
-/** Update a module's EN translation (title, description). */
+/** Update a module translation (title, description).
+ *  If the row doesn't exist for this (module_id, language_code), create it.
+ *  This allows the editor's "Hindi" tab to create the HI translation on first save. */
 export async function adminUpdateModuleTranslation(
   moduleId: string,
   language: string,
@@ -380,15 +382,38 @@ export async function adminUpdateModuleTranslation(
 ) {
   await requirePermission('course.update')
   const admin = createAdminClient()
-  const { data, error } = await admin
+
+  // Try update first; if no row matches, fall back to insert (upsert).
+  const { data: updated, error: updErr } = await admin
     .from('module_translations')
     .update(updates)
     .eq('module_id', moduleId)
     .eq('language_code', language)
     .select()
+    .maybeSingle()
+
+  if (updErr) return { data: null, error: updErr.message }
+  if (updated) {
+    await recordAudit({ action: 'course.update', entityType: 'module', entityId: moduleId })
+    return { data: updated, error: null }
+  }
+
+  // Row doesn't exist → create it.
+  const { data: inserted, error: insErr } = await admin
+    .from('module_translations')
+    .insert({
+      module_id: moduleId,
+      language_code: language,
+      title: updates.title ?? '',
+      description: updates.description ?? null,
+      status: 'draft',
+    })
+    .select()
     .single()
-  if (error) return { data: null, error: error.message }
-  return { data, error: null }
+
+  if (insErr) return { data: null, error: insErr.message }
+  await recordAudit({ action: 'course.update', entityType: 'module', entityId: moduleId })
+  return { data: inserted, error: null }
 }
 
 /** Delete a module (cascades to translations + lessons). */
@@ -619,7 +644,9 @@ export async function adminGetLessonTranslation(lessonId: string, language = 'en
   return { data, error: null }
 }
 
-/** Get a lesson (including draft) by ID with its video_url + EN translation (incl content_html). */
+/** Get a lesson (including draft) by ID with its video_url + ALL translations
+ *  (incl content_html) as an array. Used by the lesson editor which has EN/HI
+ *  tabs and needs both translations on the client. */
 export async function adminGetLesson(lessonId: string) {
   await requirePermission('lesson.update')
   const admin = createAdminClient()
@@ -631,15 +658,63 @@ export async function adminGetLesson(lessonId: string) {
     .single()
   if (lErr) return { data: null, error: lErr.message }
 
-  const { data: trans } = await admin
+  const { data: translations, error: tErr } = await admin
     .from('lesson_translations')
-    .select('id, title, summary, content_html, status')
+    .select('id, language_code, title, summary, content_html, status')
     .eq('lesson_id', lessonId)
-    .eq('language_code', 'en')
-    .single()
+
+  if (tErr) return { data: null, error: tErr.message }
 
   return {
-    data: { ...lesson, translation: trans },
+    data: { ...lesson, translations: translations ?? [] },
     error: null,
   }
+}
+
+/** Upsert a lesson translation by (lesson_id, language_code).
+ *  Used when the editor's Hindi tab saves for the first time (no HI row yet).
+ *  Also accepts updates to an existing translation by id. */
+export async function adminUpsertLessonTranslation(
+  lessonId: string,
+  language: string,
+  fields: { title?: string; summary?: string | null; content_html?: string | null; status?: string },
+) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data: existing } = await admin
+    .from('lesson_translations')
+    .select('id')
+    .eq('lesson_id', lessonId)
+    .eq('language_code', language)
+    .maybeSingle()
+
+  if (existing) {
+    const { data, error } = await admin
+      .from('lesson_translations')
+      .update(fields)
+      .eq('id', existing.id)
+      .select()
+      .single()
+    if (error) return { data: null, error: error.message }
+    await recordAudit({ action: 'lesson.update', entityType: 'lesson', entityId: lessonId })
+    return { data, error: null }
+  }
+
+  const { data, error } = await admin
+    .from('lesson_translations')
+    .insert({
+      lesson_id: lessonId,
+      language_code: language,
+      title: fields.title ?? '',
+      summary: fields.summary ?? null,
+      content_html: fields.content_html ?? null,
+      status: fields.status ?? 'draft',
+    })
+    .select()
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  await recordAudit({ action: 'lesson.update', entityType: 'lesson', entityId: lessonId })
+  return { data, error: null }
 }

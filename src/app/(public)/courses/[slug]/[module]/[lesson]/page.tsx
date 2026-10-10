@@ -227,7 +227,7 @@ export default async function LessonPage({ params }: PageProps) {
             {/* WYSIWYG content (new) — takes precedence over legacy blocks */}
             {translation.content_html ? (
               <article
-                className="prose prose-slate dark:prose-invert max-w-none prose-headings:scroll-mt-20 prose-pre:bg-muted prose-pre:text-foreground prose-img:rounded-lg prose-table:border-border"
+                className="prose prose-slate dark:prose-invert max-w-none prose-headings:scroll-mt-20 prose-pre:bg-muted prose-pre:text-foreground prose-img:rounded-lg prose-table:border-border overflow-x-auto"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(translation.content_html) }}
               />
             ) : (

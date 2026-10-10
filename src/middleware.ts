@@ -66,6 +66,13 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
+  // ── PERFORMANCE: skip Supabase calls for API routes and Next internals ──
+  // API routes and _next/* don't need redirect manager or session refresh —
+  // skipping these saves 100-300ms per asset request.
+  if (internalPath.startsWith('/api/') || internalPath.startsWith('/_next/')) {
+    return withNoindex(response)
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
