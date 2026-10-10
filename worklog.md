@@ -1048,3 +1048,59 @@ Stage Summary:
 - Internal system (console, dashboard, api, auth) is fully protected from
   indexing/crawling via robots.txt + X-Robots-Tag header + <meta robots> tag.
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: FIX-DEPLOY-3
+Agent: Z.ai Code (main)
+Task: Wire real Supabase credentials, apply DB schema, fix runtime error, push to GitHub
+
+Work Log:
+- Set up local .env (gitignored) with real Supabase credentials provided by user
+  (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
+  DATABASE_URL, NEXT_PUBLIC_SITE_URL). Verified .env is gitignored — no secrets committed.
+- Verified git history: local is exactly 1 commit ahead of origin/main (e9df6dc on top of
+  d0fac10). No divergence, clean linear history. Previous session's work confirmed intact.
+- IMPORTANT discovery: the "folder typo" (`odule]`) reported in the previous session's
+  summary was ENTIRELY an ANSI terminal display artifact. Raw-byte inspection
+  (`ls | od -c`, `git ls-files | od -c`, `git ls-tree -r HEAD | od -c`) proves the real
+  folder name is `[module]` (bytes: `[ m o d u l e ]`) — both in the filesystem AND in
+  git HEAD. The `[m` byte sequence was being interpreted as an ANSI SGR reset escape by
+  the output renderer, dropping those 2 chars and leaving `odule]` visible. NO rename
+  was needed; the lesson route `[slug]/[module]/[lesson]` has always been correct.
+- Applied DB schema to the fresh Supabase Postgres (ap-south-1 / Mumbai):
+  * `bun run db:check` → connection OK via Supabase pooler (IPv4 port 6543).
+  * `bun run db:apply` → migrations 001/003 already present (from prior run), migration
+    002 (triggers) + all 4 seed files applied fresh. Result: 71 tables, 4 courses,
+    1 question, 11 roles. Real content data now lives in Supabase.
+- Found + fixed a NEW runtime error that appeared once real data flowed:
+  "Event handlers cannot be passed to Client Component props" → 500 on home +
+  /courses/[slug]. Root cause: src/components/shared/course-card.tsx (a Server
+  Component, no 'use client') had `onClick={(e) => e.stopPropagation()}` on the PDF
+  <Link> (added in prior session commit d0fac10 "PDF links on cards"). Passing a
+  function from a server component to a client component (Link) is forbidden by Next.js.
+  Also, the PDF <Link> was nested inside the outer card <Link> → invalid HTML
+  (nested <a> tags). Fixed by restructuring CourseCard:
+    * Header + body wrapped in one <Link href="/courses/[slug]"> (clickable card area).
+    * Footer has TWO separate sibling <Link>s: "Start learning" + "PDF" (no nesting).
+    * Removed the onClick entirely (no longer needed — links are siblings, not nested).
+  Valid HTML, no event-handler serialization, both links work.
+- Added `'use client'` to src/components/shared/error-state.tsx (it accepts an onRetry
+  callback prop passed to <Button onClick> — currently unused but would crash if used
+  in a server component). Preventive fix.
+- Browser verification (agent-browser, real Supabase data):
+  * Home `/` → 200, shows real Featured Courses (PowerPoint Fundamentals, Excel
+    Fundamentals, etc.) with difficulty badges, durations, descriptions, learning
+    outcomes. 0 console errors.
+  * Course `/courses/powerpoint-fundamentals` → 200, real title, "What you'll learn",
+    "Course Content" with module "Getting Started with PowerPoint" + lesson
+    "Introduction to PowerPoint 7m". 0 console errors.
+  * All public routes 200. Lint: 0 errors. dev.log: no unhandled errors.
+- Pushed to GitHub (origin/main) using the provided PAT.
+
+Stage Summary:
+- Supabase env vars wired locally + Vercel env vars confirmed set by user. DB schema
+  + seeds applied → real content data now renders on the site.
+- CourseCard server-component crash fixed (onClick removed + valid non-nested link
+  structure). Site fully functional end-to-end with real data.
+- "Folder typo" was a phantom — confirmed via raw-byte inspection, no rename needed.
+- All changes committed and pushed to GitHub.
