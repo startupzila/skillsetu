@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +10,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 
 export default function RegisterPage() {
-  const router = useRouter()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,8 +44,7 @@ export default function RegisterPage() {
 
       // If session was created (email confirmation disabled), go to home
       if (data.session) {
-        router.push('/')
-        router.refresh()
+        window.location.href = '/'
       } else {
         setSuccess(true)
       }

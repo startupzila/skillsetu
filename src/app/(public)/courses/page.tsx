@@ -6,6 +6,8 @@ import { EmptyState } from '@/components/shared'
 import { BookOpen } from 'lucide-react'
 import { SearchableCourseGrid } from '@/components/shared/searchable-course-grid'
 import { safeFetch } from '@/lib/safe-fetch'
+import { getLocale, localePath } from '@/lib/i18n/locale'
+import { t } from '@/lib/i18n/dictionary'
 
 export const metadata: Metadata = {
   title: 'All Courses — Free Excel, Tally, Digital Marketing & More | MioDemy',
@@ -14,9 +16,10 @@ export const metadata: Metadata = {
 }
 
 export default async function CoursesPage() {
+  const lang = await getLocale()
   const [coursesRes, categoriesRes] = await Promise.all([
-    safeFetch(() => listPublishedCourses('en')),
-    safeFetch(() => listPublishedCategories('en')),
+    safeFetch(() => listPublishedCourses(lang)),
+    safeFetch(() => listPublishedCategories(lang)),
   ])
   const courses = coursesRes?.data ?? []
   const categories = categoriesRes?.data ?? []
@@ -37,9 +40,9 @@ export default async function CoursesPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="text-center mb-8 max-w-2xl mx-auto">
-        <h1 className="text-4xl font-bold tracking-tight">All Courses</h1>
+        <h1 className="text-4xl font-bold tracking-tight">{lang === 'hi' ? 'सभी कोर्स' : 'All Courses'}</h1>
         <p className="text-muted-foreground mt-3 text-lg">
-          Structured, practical courses with lessons, examples, practice and quizzes.
+          {lang === 'hi' ? 'संरचित, व्यावहारिक कोर्स — पाठ, उदाहरण, अभ्यास और क्विज़ के साथ।' : 'Structured, practical courses with lessons, examples, practice and quizzes.'}
         </p>
       </div>
 

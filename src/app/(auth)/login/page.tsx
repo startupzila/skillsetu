@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,7 +29,6 @@ export default function LoginPage() {
 }
 
 function LoginContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') ?? '/'
   const errorParam = searchParams.get('error')
@@ -57,8 +56,8 @@ function LoginContent() {
         return
       }
 
-      router.push(redirect)
-      router.refresh()
+      // Hard navigation — faster than router.push + router.refresh (avoids double render)
+      window.location.href = redirect
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {

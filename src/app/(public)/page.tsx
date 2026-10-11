@@ -9,6 +9,7 @@ import { listPublishedCourses, listPublishedCategories } from '@/lib/content'
 import { safeFetch } from '@/lib/safe-fetch'
 import { getLocale, localePath } from '@/lib/i18n/locale'
 import { t } from '@/lib/i18n/dictionary'
+import { getSessionFast } from '@/lib/auth/session-fast'
 import { BookOpen, GraduationCap, Languages, ArrowRight, Building2, Plus } from 'lucide-react'
 
 /**
@@ -20,6 +21,7 @@ import { BookOpen, GraduationCap, Languages, ArrowRight, Building2, Plus } from 
  */
 export default async function Home() {
   const lang = await getLocale()
+  const session = await getSessionFast().catch(() => null)
   const coursesRes = await safeFetch(() => listPublishedCourses(lang))
   const categoriesRes = await safeFetch(() => listPublishedCategories(lang))
   const courses = coursesRes?.data ?? []
@@ -46,12 +48,14 @@ export default async function Home() {
                 {t(lang, 'hero.browseCourses')}
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/register">
-                <GraduationCap className="h-4 w-4 mr-2" />
-                {t(lang, 'hero.createAccount')}
-              </Link>
-            </Button>
+            {!session && (
+              <Button asChild size="lg" variant="outline">
+                <Link href="/register">
+                  <GraduationCap className="h-4 w-4 mr-2" />
+                  {t(lang, 'hero.createAccount')}
+                </Link>
+              </Button>
+            )}
           </div>
           <p className="text-sm text-muted-foreground pt-3">
             {t(lang, 'hero.flow')}
