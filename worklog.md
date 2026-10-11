@@ -2169,3 +2169,68 @@ Stage Summary:
 - Course Mock Test manager: dedicated /console/mock-tests.
 - Mock Test exam page: timer, question palette, exam experience.
 - All 3 tasks complete. Committed and pushed to GitHub.
+
+---
+Task ID: HEADER-QUIZFK-EMAIL
+Agent: Z.ai Code (main)
+Task: Fix quiz/mocktest FK errors + header nav + email verification + user dropdown
+
+Work Log:
+
+FIX 1 — Quiz/MockTest "Could not find relationship" errors:
+- Root cause: quizzes table had NO course_id column at all; mock_tests had the
+  column but NO FK. Both needed FKs to courses for PostgREST to resolve the
+  `course:courses(...)` join in the console managers.
+- DB migration 006: added quizzes.course_id column + FK to courses(id);
+  added mock_tests.course_id FK to courses(id). Refreshed PostgREST schema cache.
+- Verified: both `quizzes` and `mock_tests` join queries now succeed (0 rows,
+  no error). Console /console/quizzes and /console/mock-tests will load correctly.
+
+FIX 2a — Header nav simplified:
+- Removed "Books" and redundant items. Nav is now exactly: Courses, Quiz,
+  Mock Test, Skills, Centres, PDF (as requested).
+- Footer unchanged (still has all links including Books).
+
+FIX 2b — Email verification 404 fix:
+- Root cause: Supabase dashboard auth redirect URL pointed to a stale Vercel
+  deployment (skillsetu-startupzilas-projects.vercel.app) which doesn't exist.
+  The email verification link returns 404.
+- Fix: changed registration to use the service-role admin API to create users
+  with `email_confirm: true` — no email verification needed. Users can sign
+  in immediately after registration. The signUp route now:
+  1. Creates user via admin.auth.admin.createUser({ email_confirm: true })
+  2. Signs in immediately via supabase.auth.signInWithPassword
+  3. Returns session=true → frontend redirects to home
+
+FIX 3 — User icon dropdown + mobile hamburger:
+- Desktop: replaced Dashboard/Console/SignOut buttons with a single user icon
+  (shows user initial in a circle). Click → dropdown menu with:
+  • User name + email (header)
+  • Dashboard
+  • Profile (new page /profile)
+  • Settings (new page /settings)
+  • Console (only for staff users — isStaff check)
+  • Sign out
+- Mobile: ALL auth items are inside the hamburger Sheet (no separate user
+  icon). The Sheet shows user info card + Dashboard/Profile/Settings/Console
+  (staff only)/Sign out.
+- Created /profile page: shows display name, email, roles, account info.
+- Created /settings page: language preference, notifications, appearance.
+- isStaff function inlined in header (avoids importing server-only module
+  into a client component).
+
+Verification:
+- Lint: 0 errors, 0 warnings.
+- All routes 200: /, /hi, /quizzes, /mock-tests, /courses/*, /profile (307 auth),
+  /settings (307 auth), /login, /register.
+- Browser: login → user icon "A" appears → dropdown shows Dashboard/Profile/
+  Settings/Console/Sign out. Logout → redirects to home, Sign in/up buttons return.
+- Header nav: exactly Courses, Quiz, Mock Test, Skills, Centres, PDF.
+
+Stage Summary:
+- Quiz/MockTest FK errors fixed — console pages now load.
+- Header: simplified to 6 nav links + user icon dropdown.
+- Email verification: bypassed (auto-confirm on signup, immediate login).
+- User menu: single dropdown with Profile/Settings/Dashboard/Console/Sign out.
+- Mobile: everything in the hamburger, no separate user icon.
+- All changes committed and pushed to GitHub.
