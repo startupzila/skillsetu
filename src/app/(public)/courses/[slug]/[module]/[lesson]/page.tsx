@@ -11,6 +11,7 @@ import {
   CourseSidebar,
   PrevNextNav,
   MobileCourseNav,
+  LessonQuizSection,
   type SidebarModule,
 } from '@/components/learning'
 import { LessonVideo } from '@/components/learning/lesson-video'
@@ -87,6 +88,7 @@ export default async function LessonPage({ params }: PageProps) {
     translation,
     blocks,
     questions,
+    quizzes,
     course,
     module: mod,
   } = lessonResult.data
@@ -241,6 +243,15 @@ export default async function LessonPage({ params }: PageProps) {
 
             {/* Lesson-attached practice questions (MCQ + QNA), w3schools style */}
             <LessonPractice questions={questions ?? []} />
+
+            {/* Inline quizzes attached to the lesson (published only) */}
+            {quizzes && quizzes.length > 0 && (
+              <LessonQuizSection
+                quizzes={quizzes}
+                lang={lang}
+                fullPageHrefs={quizzes.map((q) => localePath(lang, `/quiz/${q.slug}`))}
+              />
+            )}
 
             <Separator className="my-8" />
 

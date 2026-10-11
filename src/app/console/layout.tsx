@@ -125,6 +125,27 @@ export default async function ConsoleLayout({
               <span className="block text-[10px] text-muted-foreground/70">modules, lessons, MCQ &amp; QNA</span>
             </Link>
             <Link
+              href="/console/quizzes"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Quizzes
+              <span className="block text-[10px] text-muted-foreground/70">course-level quizzes</span>
+            </Link>
+            <Link
+              href="/console/mock-tests"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Mock Tests
+              <span className="block text-[10px] text-muted-foreground/70">timed exam practice</span>
+            </Link>
+            <Link
+              href="/console/questions"
+              className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
+            >
+              Questions
+              <span className="block text-[10px] text-muted-foreground/70">question bank</span>
+            </Link>
+            <Link
               href="/console/media"
               className="block px-3 py-2 rounded-md hover:bg-accent text-muted-foreground"
             >

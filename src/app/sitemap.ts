@@ -26,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // NOTE: auth pages (/login, /register, …) and /dashboard are intentionally
   // excluded — this is a company-internal system and those routes must never
   // appear in search results (also blocked via robots.txt + X-Robots-Tag).
-  const staticPages = ['/', '/skills', '/courses', '/quizzes', '/search', '/about', '/centres', '/books', '/store']
+  const staticPages = ['/', '/skills', '/courses', '/quizzes', '/mock-tests', '/search', '/about', '/centres', '/books', '/store']
   for (const path of staticPages) {
     entries.push({
       url: `${siteUrl}${path}`,
@@ -108,6 +108,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       out.push({
         url: `${siteUrl}/quiz/${quiz.slug}`,
         lastModified: new Date(quiz.published_at ?? new Date()),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      })
+    }
+
+    // Published mock tests
+    const { data: mockTests } = await supabase
+      .from('mock_tests')
+      .select('slug, published_at')
+      .eq('status', 'published')
+
+    for (const test of mockTests ?? []) {
+      out.push({
+        url: `${siteUrl}/mock-test/${test.slug}`,
+        lastModified: new Date(test.published_at ?? new Date()),
         changeFrequency: 'weekly' as const,
         priority: 0.7,
       })

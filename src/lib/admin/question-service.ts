@@ -403,3 +403,317 @@ export async function adminRemoveQuestionFromQuiz(quizId: string, questionId: st
   if (error) return { error: error.message }
   return { error: null }
 }
+
+// ── QUIZ CRUD (create / update / delete / list-for-lesson) ─────────────
+
+export interface AdminQuizInput {
+  lesson_id?: string
+  module_id?: string
+  course_id?: string
+  slug: string
+  passing_score?: number
+  title_en: string
+  title_hi?: string
+  instructions_en?: string
+  instructions_hi?: string
+}
+
+/** Create a quiz with EN + (optional) HI translations.
+ *  The quiz row starts in `draft` status. Use `adminPublishQuiz` to publish. */
+export async function adminCreateQuiz(input: AdminQuizInput) {
+  await requirePermission('question.create')
+  const admin = createAdminClient()
+
+  const { data: quiz, error: qErr } = await admin
+    .from('quizzes')
+    .insert({
+      slug: input.slug,
+      lesson_id: input.lesson_id ?? null,
+      module_id: input.module_id ?? null,
+      course_id: input.course_id ?? null,
+      status: 'draft',
+      passing_score: input.passing_score ?? 60,
+    })
+    .select()
+    .single()
+  if (qErr) return { data: null, error: qErr.message }
+
+  // Insert EN translation (always required)
+  const { error: enErr } = await admin.from('quiz_translations').insert({
+    quiz_id: quiz.id,
+    language_code: 'en',
+    title: input.title_en,
+    instructions: input.instructions_en ?? null,
+    status: 'draft',
+  })
+  if (enErr) return { data: null, error: enErr.message }
+
+  // Insert HI translation (if provided)
+  if (input.title_hi || input.instructions_hi) {
+    const { error: hiErr } = await admin.from('quiz_translations').insert({
+      quiz_id: quiz.id,
+      language_code: 'hi',
+      title: input.title_hi ?? input.title_en,
+      instructions: input.instructions_hi ?? null,
+      status: 'draft',
+    })
+    if (hiErr) return { data: null, error: hiErr.message }
+  }
+
+  await recordAudit({ action: 'quiz.create', entityType: 'quiz', entityId: quiz.id })
+  return { data: quiz, error: null }
+}
+
+export interface AdminQuizUpdate {
+  passing_score?: number
+  status?: string
+  course_id?: string | null
+  title_en?: string
+  title_hi?: string
+  instructions_en?: string | null
+  instructions_hi?: string | null
+}
+
+/** Update a quiz's core fields + (optional) EN/HI translations.
+ *  - Translations are upserted by (quiz_id, language_code). If a translation
+ *    row doesn't exist yet (e.g. adding HI to a quiz that only had EN), it's
+ *    created on the fly.
+ */
+export async function adminUpdateQuiz(quizId: string, updates: AdminQuizUpdate) {
+  await requirePermission('question.create')
+  const admin = createAdminClient()
+
+  // Core quiz fields (passing_score, status, course_id)
+  const core: Record<string, unknown> = {}
+  if (typeof updates.passing_score === 'number') core.passing_score = updates.passing_score
+  if (typeof updates.status === 'string') core.status = updates.status
+  if (typeof updates.course_id !== 'undefined') core.course_id = updates.course_id
+  if (Object.keys(core).length > 0) {
+    const { error } = await admin.from('quizzes').update(core).eq('id', quizId)
+    if (error) return { data: null, error: error.message }
+  }
+
+  // EN translation upsert
+  if (
+    typeof updates.title_en === 'string' ||
+    typeof updates.instructions_en !== 'undefined'
+  ) {
+    const { data: existing } = await admin
+      .from('quiz_translations')
+      .select('id')
+      .eq('quiz_id', quizId)
+      .eq('language_code', 'en')
+      .maybeSingle()
+
+    const fields: Record<string, unknown> = {}
+    if (typeof updates.title_en === 'string') fields.title = updates.title_en
+    if (typeof updates.instructions_en !== 'undefined')
+      fields.instructions = updates.instructions_en
+
+    if (existing) {
+      const { error } = await admin
+        .from('quiz_translations')
+        .update(fields)
+        .eq('id', existing.id)
+      if (error) return { data: null, error: error.message }
+    } else {
+      const { error } = await admin.from('quiz_translations').insert({
+        quiz_id: quizId,
+        language_code: 'en',
+        title: typeof updates.title_en === 'string' ? updates.title_en : '',
+        instructions: updates.instructions_en ?? null,
+        status: 'draft',
+      })
+      if (error) return { data: null, error: error.message }
+    }
+  }
+
+  // HI translation upsert
+  if (
+    typeof updates.title_hi === 'string' ||
+    typeof updates.instructions_hi !== 'undefined'
+  ) {
+    const { data: existing } = await admin
+      .from('quiz_translations')
+      .select('id')
+      .eq('quiz_id', quizId)
+      .eq('language_code', 'hi')
+      .maybeSingle()
+
+    const fields: Record<string, unknown> = {}
+    if (typeof updates.title_hi === 'string') fields.title = updates.title_hi
+    if (typeof updates.instructions_hi !== 'undefined')
+      fields.instructions = updates.instructions_hi
+
+    if (existing) {
+      const { error } = await admin
+        .from('quiz_translations')
+        .update(fields)
+        .eq('id', existing.id)
+      if (error) return { data: null, error: error.message }
+    } else {
+      const { error } = await admin.from('quiz_translations').insert({
+        quiz_id: quizId,
+        language_code: 'hi',
+        title:
+          typeof updates.title_hi === 'string'
+            ? updates.title_hi
+            : (updates.title_en ?? ''),
+        instructions: updates.instructions_hi ?? null,
+        status: 'draft',
+      })
+      if (error) return { data: null, error: error.message }
+    }
+  }
+
+  await recordAudit({ action: 'quiz.update', entityType: 'quiz', entityId: quizId })
+
+  // Re-fetch + return the updated quiz with translations.
+  const { data, error } = await admin
+    .from('quizzes')
+    .select(
+      `id, slug, status, passing_score, published_at, created_at, course_id,
+       translations:quiz_translations(id, language_code, title, instructions, status),
+       course:courses(id, slug,
+         translations:course_translations(language_code, title, status)),
+       lesson:lessons(id, slug)`,
+    )
+    .eq('id', quizId)
+    .single()
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Publish a quiz + all of its translations. */
+export async function adminPublishQuiz(quizId: string) {
+  await requirePermission('question.review')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('quizzes')
+    .update({ status: 'published', published_at: new Date().toISOString() })
+    .eq('id', quizId)
+    .select()
+    .single()
+  if (error) return { data: null, error: error.message }
+
+  // Publish all translations as well.
+  await admin
+    .from('quiz_translations')
+    .update({ status: 'published' })
+    .eq('quiz_id', quizId)
+
+  await recordAudit({ action: 'quiz.publish', entityType: 'quiz', entityId: quizId })
+  return { data, error: null }
+}
+
+/** Delete a quiz (cascade handles translations + quiz_questions). */
+export async function adminDeleteQuiz(quizId: string) {
+  await requirePermission('question.create')
+  const admin = createAdminClient()
+
+  // Clean up join rows first (some Supabase configs don't cascade).
+  await admin.from('quiz_questions').delete().eq('quiz_id', quizId)
+  await admin.from('quiz_translations').delete().eq('quiz_id', quizId)
+
+  const { error } = await admin.from('quizzes').delete().eq('id', quizId)
+  if (error) return { error: error.message }
+  await recordAudit({ action: 'quiz.delete', entityType: 'quiz', entityId: quizId })
+  return { error: null }
+}
+
+/** List quizzes attached to a lesson (including drafts), with translations +
+ *  question count. Used by the lesson editor's Quiz section. */
+export async function adminListQuizzesForLesson(lessonId: string) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('quizzes')
+    .select(
+      `id, slug, status, passing_score, published_at, created_at,
+       translations:quiz_translations(id, language_code, title, instructions, status),
+       quiz_questions(question_id)`,
+    )
+    .eq('lesson_id', lessonId)
+    .order('created_at', { ascending: true })
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** Get a single quiz with translations + linked questions (for the edit dialog). */
+export async function adminGetQuiz(quizId: string) {
+  await requirePermission('lesson.update')
+  const admin = createAdminClient()
+
+  const { data: quiz, error: qErr } = await admin
+    .from('quizzes')
+    .select(
+      `id, slug, status, passing_score, published_at, created_at,
+       translations:quiz_translations(id, language_code, title, instructions, status)`,
+    )
+    .eq('id', quizId)
+    .single()
+  if (qErr) return { data: null, error: qErr.message }
+
+  const { data: questions, error: qqErr } = await admin
+    .from('quiz_questions')
+    .select(
+      `id, sort_order,
+       question:questions(id, slug, question_type, difficulty, status,
+         translations:question_translations(language_code, question_text))`,
+    )
+    .eq('quiz_id', quizId)
+    .order('sort_order', { ascending: true })
+  if (qqErr) return { data: null, error: qqErr.message }
+
+  return {
+    data: { ...quiz, questions: questions ?? [] },
+    error: null,
+  }
+}
+
+// ── COURSE-LEVEL QUIZZES (lesson_id IS NULL) ─────────────────────────────
+
+/** List course-level quizzes (lesson_id IS NULL) — for the /console/quizzes page.
+ *  Returns translations, course context, and a question count. */
+export async function adminListCourseQuizzes() {
+  await requirePermission('course.read')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('quizzes')
+    .select(
+      `id, slug, status, passing_score, published_at, created_at, course_id,
+       translations:quiz_translations(id, language_code, title, instructions, status),
+       course:courses(id, slug,
+         translations:course_translations(language_code, title, status)),
+       quiz_questions(question_id)`,
+    )
+    .is('lesson_id', null)
+    .order('created_at', { ascending: false })
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}
+
+/** List published MCQ-type questions eligible for linking to a quiz.
+ *  Used by the course quiz dialog to pick questions. */
+export async function adminListEligibleMcqQuestions() {
+  await requirePermission('course.read')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('questions')
+    .select(
+      `id, slug, question_type, difficulty, status, topic,
+       translations:question_translations(id, language_code, question_text)`,
+    )
+    .in('question_type', ['single_choice', 'multiple_choice', 'true_false'])
+    .eq('status', 'published')
+    .order('created_at', { ascending: false })
+
+  if (error) return { data: null, error: error.message }
+  return { data, error: null }
+}

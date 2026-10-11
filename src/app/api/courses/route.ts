@@ -2,15 +2,19 @@ import { NextResponse } from 'next/server'
 import { listPublishedCourses } from '@/lib/content'
 
 /**
- * GET /api/courses?lang=en
+ * GET /api/courses?lang=en&q=excel
  *
  * Returns published courses with their translations.
  * Only courses that have a published translation in the requested
  * language are returned.
+ *
+ * If `q` is provided, results are filtered to courses whose title
+ * (in the requested language, case-insensitive) contains the query.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const lang = searchParams.get('lang') as 'en' | 'hi' | null
+  const q = searchParams.get('q')?.trim().toLowerCase() ?? ''
 
   const { data, error, code } = await listPublishedCourses(lang ?? undefined)
 
@@ -31,6 +35,15 @@ export async function GET(request: Request) {
       )
     }
     return NextResponse.json({ error }, { status: 500 })
+  }
+
+  // Filter by title (case-insensitive contains) when `q` is provided.
+  if (q) {
+    const filtered = (data ?? []).filter((course) => {
+      const t = course.translations?.[0]
+      return t?.title?.toLowerCase().includes(q) ?? false
+    })
+    return NextResponse.json({ data: filtered })
   }
 
   return NextResponse.json({ data })

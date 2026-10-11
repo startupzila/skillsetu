@@ -87,6 +87,20 @@ export async function getPublishedLessonBySlug(
     .eq('status', 'published')
     .order('created_at', { ascending: true })
 
+  // 5c. Get published quizzes attached to this lesson (basic metadata only —
+  //     the full question payload is fetched on demand when the learner clicks
+  //     "Start Quiz" via the public /api/quiz endpoint).
+  const { data: quizzes } = await supabase
+    .from('quizzes')
+    .select(
+      `id, slug, passing_score,
+       translations:quiz_translations(language_code, title, instructions, status),
+       quiz_questions(question_id)`,
+    )
+    .eq('lesson_id', lesson.id)
+    .eq('status', 'published')
+    .order('published_at', { ascending: true })
+
   // 6. Prev/next lesson within the same module
   const { data: siblings } = await supabase
     .from('lessons')
@@ -110,6 +124,7 @@ export async function getPublishedLessonBySlug(
       translation: translation as LessonPageData['translation'],
       blocks: (blocks ?? []) as LessonPageData['blocks'],
       questions: (questions ?? []) as LessonPageData['questions'],
+      quizzes: (quizzes ?? []) as LessonPageData['quizzes'],
       course: { id: course.id, slug: course.slug },
       module: { id: lessonModule.id, slug: lessonModule.slug },
       prevLesson,

@@ -1782,3 +1782,390 @@ Stage Summary:
 - Quiz system: dedicated /quizzes index page + quiz play page with Related/Latest/
   Trending sections + next quiz option + SEO + header/footer links.
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: LESSON-QUIZ
+Agent: Z.ai Code (subagent LESSON-QUIZ)
+Task: Console lesson editor Quiz section + inline lesson-page quiz
+
+Work Log:
+
+PART A — Console Lesson Editor: Quiz section
+- Added a "Quiz section" Card below the QNA section in
+  `src/components/learning/lesson-editor.tsx`. It follows the same EN/HI
+  language-tab pattern as the MCQ / QNA sections (uses the editor's shared
+  `lang` state from the top-of-page Language selector).
+- New `<QuizSection>` component:
+  • Fetches quizzes attached to the lesson via
+    `GET /api/admin/lessons/{lessonId}/quizzes` (new route).
+  • "Add Quiz" button → opens `<QuizDialog>` for create / edit.
+  • For each quiz: title + status badge + passing-score badge + question
+    count badge + fallback-language badge + Edit / Publish / Delete buttons.
+  • Amber warning when a draft quiz has zero questions ("Add at least one
+    question before publishing the quiz.").
+- New `<QuizDialog>` component (create + edit):
+  • Title field bound to the active `lang` (writes to titleEn / titleHi).
+  • Instructions textarea bound to the active lang.
+  • Passing-score numeric input.
+  • Linked-questions picker: shows every MCQ attached to the lesson as a
+    checkbox row with the question text (rendered as HTML). Checking /
+    unchecking a row adds / removes the question from the quiz via the
+    `/api/admin/quizzes/[id]?action=add-question` and `?action=remove-question`
+    endpoints. Only MCQ-style questions are eligible (descriptive questions
+    cannot be auto-graded).
+  • On create: `POST /api/admin/quizzes` with `{ lesson_id, slug,
+    passing_score, title_en, title_hi?, instructions_en?, instructions_hi? }`,
+    then links any pre-checked questions.
+  • On edit: `PATCH /api/admin/quizzes/[id]` with the title/instructions/
+    passing_score (HI fields only sent when a HI translation already exists
+    OR the user typed something — avoids creating an empty HI row), then
+    syncs linked questions (POST new links, POST remove-question for unlinks).
+  • "Language banner" inside the dialog tells the user the EN title is
+    always required, and the other language is preserved when saving.
+
+PART A — Admin API routes (new)
+- `POST /api/admin/quizzes` — create a quiz with EN + (optional) HI
+  translations. The quiz starts in `draft` status.
+- `GET /api/admin/quizzes/[id]` — fetch a quiz with translations + linked
+  questions (for the edit dialog).
+- `PATCH /api/admin/quizzes/[id]` — update core fields (passing_score,
+  status) + upsert EN/HI translations by (quiz_id, language_code). Sending
+  `title_hi` on a quiz with no HI row creates the translation on the fly.
+- `DELETE /api/admin/quizzes/[id]` — deletes the quiz and cascades
+  translations + quiz_questions rows.
+- `POST /api/admin/quizzes/[id]` with `?action=`:
+    • `publish` → sets status=published + published_at, and marks all
+      quiz_translations as published.
+    • `add-question`  body `{ question_id }` → links a question.
+    • `remove-question` body `{ question_id }` → unlinks a question.
+    • (no action) → returns the list of linked questions (helper).
+- `GET /api/admin/lessons/[id]/quizzes` — lists quizzes (incl. drafts)
+  attached to a lesson, with translations + `quiz_questions(question_id)`
+  for the count.
+
+PART A — Service functions (`src/lib/admin/question-service.ts`)
+Added:
+- `adminCreateQuiz(input: AdminQuizInput)` — inserts the quiz + EN translation
+  + (optional) HI translation. Audit: `quiz.create`.
+- `adminUpdateQuiz(quizId, updates: AdminQuizUpdate)` — upserts EN + HI
+  translations; updates core fields; re-fetches + returns the full quiz row
+  with translations. Audit: `quiz.update`.
+- `adminPublishQuiz(quizId)` — publishes quiz + all translations.
+  Audit: `quiz.publish`.
+- `adminDeleteQuiz(quizId)` — cleans up quiz_questions + quiz_translations
+  before deleting the quiz (defensive: some Supabase configs don't cascade).
+  Audit: `quiz.delete`.
+- `adminListQuizzesForLesson(lessonId)` — selects quizzes + translations +
+  `quiz_questions(question_id)` for the editor's Quiz section.
+- `adminGetQuiz(quizId)` — single quiz with translations + linked questions
+  (used by GET /api/admin/quizzes/[id]).
+
+PART B — Frontend Lesson Page: inline quiz
+- Extended `getPublishedLessonBySlug` in `src/lib/content/lesson-service.ts`
+  to also fetch published quizzes attached to the lesson. The query selects
+  `id, slug, passing_score, translations:quiz_translations(...),
+  quiz_questions(question_id)` filtered by `lesson_id` + `status='published'`.
+- Added `LessonQuiz` type + `LessonPageData.quizzes: LessonQuiz[]` in
+  `src/lib/content/types.ts`.
+- New client component `src/components/learning/inline-quiz.tsx`:
+  • `<InlineQuiz quiz lang fullPageHref>` — renders the quiz title,
+    passing-score badge, question count, "Start Quiz" button, and an
+    "Open in full page →" link (uses the supplied `fullPageHref` which the
+    page computes via `localePath(lang, '/quiz/[slug]')`).
+  • On click: lazily fetches the full quiz payload (questions with correct
+    answers stripped) from the existing public `/api/quiz?slug=...&lang=...`
+    endpoint. This keeps the lesson page light (no per-quiz question fetch
+    until the learner actually starts the quiz).
+  • Renders `<QuizRunner>` inline below the button. After completion,
+    results + per-question review show inline (QuizRunner already handles
+    this phase).
+  • Guard: if the quiz has 0 questions, shows a friendly error instead of
+    crashing (QuizRunner indexes `questions[0]` in its header).
+  • `<LessonQuizSection quizzes lang fullPageHrefs>` — wraps multiple
+    `<InlineQuiz>` cards under a "Quiz" heading. Returns null when there
+    are no quizzes.
+- The lesson page now renders `<LessonQuizSection>` directly below
+  `<LessonPractice>` (MCQ/QNA), above the bottom PrevNextNav.
+
+Verification
+- Lint: 0 errors, 0 warnings (`bun run lint`).
+- Dev server: starts cleanly via `bun x next dev -p 3000`. No
+  "Failed to compile" or "⨯ Error" lines in dev.log.
+- Route tested:
+    /courses/powerpoint-fundamentals/getting-started-with-powerpoint/introduction-to-powerpoint → 200
+    (lesson page renders with the new Quiz section component mounted,
+    even when there are zero quizzes — `LessonQuizSection` returns null).
+
+Constraints respected
+- Did NOT modify `src/app/(public)/quiz/[slug]/page.tsx`.
+- Did NOT modify `src/components/learning/quiz-runner.tsx`.
+- Did NOT run `bun run build`.
+- `'use client'` directive on `inline-quiz.tsx` and the existing
+  `lesson-editor.tsx`.
+- TypeScript strict, no `any` (used `Record<string, unknown>` for the
+  dynamic translation upsert fields, mirroring the existing
+  `adminUpsertLessonTranslation` pattern).
+
+Stage Summary
+- Console: lesson editor has a new "Quizzes" section with full CRUD +
+  publish flow + per-question linking, all wired to the existing EN/HI
+  language tabs.
+- Public: lesson page now shows inline published quizzes below the
+  practice questions. Each quiz lazy-loads its full question payload only
+  when the learner clicks "Start Quiz", keeping the lesson page light.
+- API surface is purely additive (4 new routes + 1 nested GET under
+  lessons/[id]/quizzes). Existing routes + components untouched.
+
+---
+Task ID: COURSE-QUIZ-MOCKTEST
+Agent: Z.ai Code (subagent COURSE-QUIZ-MOCKTEST)
+Task: Course Quiz Manager + Mock Test Manager (console + public)
+
+Work Log:
+
+PART A — Console /console/quizzes — Course Quiz Manager
+- New page `src/app/console/quizzes/page.tsx` (server) — calls
+  `adminListCourseQuizzes` and renders the client `CourseQuizManager`.
+- New client component `src/components/console/course-quiz-manager.tsx`:
+  • Lists course-level quizzes where `lesson_id IS NULL` (filter applied
+    server-side via the new `adminListCourseQuizzes` service function).
+  • Columns: quiz title (EN), slug, status, linked course (name + slug),
+    question count, passing score.
+  • "New Quiz" button → opens dialog with:
+    - AJAX course search (debounced `GET /api/courses?q=...` → dropdown
+      → click to select → fills `course_id`).
+    - EN + HI tabs for title + instructions (separate state per lang).
+    - Passing score.
+    - Slug (auto-generated from EN title, editable on create only).
+    - Linked-questions picker: pulls published MCQ questions from
+      `/api/admin/questions/eligible` (new endpoint), toggle via checkboxes.
+  • Edit button reuses the same dialog (hydrated from the quiz row's
+    `course` join + `quiz_questions` IDs).
+  • Publish button → `POST /api/admin/quizzes/[id]?action=publish`.
+  • Delete button → `DELETE /api/admin/quizzes/[id]`.
+- Service additions in `src/lib/admin/question-service.ts`:
+  • `adminListCourseQuizzes()` — `quizzes` where `lesson_id IS NULL`,
+    joined to `courses` (+ course_translations) and `quiz_questions`
+    for the count.
+  • `adminListEligibleMcqQuestions()` — published questions whose
+    `question_type` is in `single_choice | multiple_choice | true_false`
+    (descriptive/auto-graded-unsupported excluded).
+  • `AdminQuizInput.course_id` + `AdminQuizUpdate.course_id` added so
+    the create/edit flows can link a quiz to a course.
+  • `adminUpdateQuiz` re-fetch now also selects `course_id` + the
+    `course:courses(...)` join so the response is consistent with the
+    list endpoint.
+- API additions:
+  • `GET /api/admin/quizzes?course_only=1` — returns only course-level
+    quizzes. Same endpoint, optional filter.
+  • `GET /api/admin/questions/eligible` — new endpoint exposing the
+    eligible-MCQ helper for the dialog pickers.
+  • `GET /api/courses?q=excel` — extended with a `q` filter
+    (case-insensitive title contains) for the AJAX course search.
+- Console sidebar: added "Quizzes" link under "Content" (with sub-label
+  "course-level quizzes") in `src/app/console/layout.tsx`. Also added
+  a "Questions" link while at it — the page existed at /console/questions
+  but wasn't in the nav.
+- The course-quiz manager fully reuses the existing
+  `/api/admin/quizzes/[id]?action=add-question|remove-question|publish`
+  endpoints (no API surface broken).
+
+PART B — Console /console/mock-tests — Course Mock Test Manager
+- New service `src/lib/admin/mock-test-service.ts` with:
+  • `adminListMockTests()` — selects mock_tests + test_translations +
+    course (with course_translations) + test_questions for the count.
+  • `adminGetMockTest(id)` — single test with translations + linked
+    questions (for the edit dialog).
+  • `adminCreateMockTest(input)` — inserts mock_tests row (status=draft)
+    + EN translation + (optional) HI translation.
+  • `adminUpdateMockTest(id, updates)` — upserts EN + HI translations
+    by (test_id, language_code); updates core fields; re-fetches with
+    course context. Mirrors `adminUpdateQuiz`.
+  • `adminPublishMockTest(id)` — publishes the test + all translations.
+  • `adminDeleteMockTest(id)` — cleans up test_questions + test_translations
+    before deleting the test (defensive against non-cascading FK configs).
+  • `adminListMockTestQuestions(id)` / `adminAddQuestionToMockTest(id, qid)`
+    / `adminRemoveQuestionFromMockTest(id, qid)` — same pattern as the
+    quiz equivalents. Add/remove keep `mock_tests.question_count` in
+    sync with the actual `test_questions` row count.
+- New API routes (mirror /api/admin/quizzes/*):
+  • `GET, POST /api/admin/mock-tests`
+  • `GET, PATCH, DELETE, POST /api/admin/mock-tests/[id]`
+    (?action=publish | add-question | remove-question | (none)→list)
+- New page `src/app/console/mock-tests/page.tsx` + client
+  `src/components/console/mock-test-manager.tsx`:
+  • Same UX pattern as the course quiz manager — table list, dialog
+    create/edit, AJAX course search, EN/HI tabs, linked-questions
+    picker.
+  • Mock-test-specific fields: time_limit_minutes, passing_score,
+    difficulty (Select: easy/medium/hard), question_count (auto-synced
+    with linked questions), attempts_allowed (optional).
+- Console sidebar: "Mock Tests" link under "Content"
+  (with sub-label "timed exam practice").
+
+PART C — Public /mock-tests index + /mock-test/[slug] exam page
+- New content service `src/lib/content/mock-test-service.ts`:
+  • `listPublishedMockTests(language)` — published tests + translations
+    + course context + question count (via `count: exact, head: true`
+    on `test_questions`).
+  • `getPublishedMockTestBySlug(slug, language)` — single test with
+    translation + the list of `PublicQuestion` rows (correct answers
+    STRIPPED — reuses the `preparePublicQuestion` pattern from
+    assessment-service.ts; `is_correct` never leaks to the client).
+  • `safeListPublishedMockTests` — safeFetch wrapper for the index page.
+- New index page `src/app/(public)/mock-tests/page.tsx`:
+  • SEO metadata (title/desc/keywords/hreflang/canonical/OG).
+  • Bilingual (EN + HI). Cards show title, instructions, question
+    count, time limit, difficulty, passing score, linked course.
+- New exam page `src/app/(public)/mock-test/[slug]/page.tsx`:
+  • Locale-aware, SEO metadata, breadcrumbs.
+  • Two-column desktop layout: exam runner (left), info sidebar
+    (right). Stacks on mobile.
+  • Empty-state guard (no questions yet).
+- New client component `src/components/learning/mock-test-runner.tsx`:
+  • Countdown timer (MM:SS) — auto-submits when reaching 0 (uses a
+    ref to ensure single submission).
+  • Question palette (right sidebar on desktop, below on mobile):
+    grid of numbered buttons, color-coded by status
+    (current=primary, answered=green, unanswered=muted).
+  • One question at a time with Prev/Next navigation.
+  • Submit button (both inline on the last question and as a sticky
+    palette action) — wrapped in a confirmation AlertDialog.
+  • Results screen: trophy/score card, pass/fail, per-question review
+    (correct + selected options highlighted, explanation when present).
+  • Low-time warning: timer badge pulses red when ≤60s remaining.
+  • Locale-aware labels (EN + HI).
+- The runner POSTs `{ assessment_type: 'mock_test', mockTestId }` to
+  `/api/quiz/attempts` to start the attempt, then PUTs the answers.
+  The attempts endpoint was extended to:
+  • Accept `{ assessment_type: 'mock_test', mockTestId }` in POST and
+    create an attempt with `assessment_type='mock_test'`.
+  • Look up `passing_score` from `mock_tests` (instead of `quizzes`)
+    when grading a mock_test attempt.
+  • Backward-compatible: the existing `{ quizId }` body still works
+    for quiz attempts.
+- MockTestRunner exported via `src/components/learning/index.ts`.
+- Header: added "Mock Tests" link in the nav (between Quizzes and Skills).
+- Footer: added "Mock Tests" link in the Learn section.
+- Sitemap: added `/mock-tests` to static entries and dynamic entries
+  for every published mock test (`/mock-test/[slug]`).
+
+Verification
+- Lint: 0 errors, 0 warnings (`bun run lint`).
+- Dev server: starts cleanly via `bun x next dev -p 3000 -H 0.0.0.0`.
+  No "Failed to compile" or "⨯ Error" lines in dev.log.
+- Route tests (single Bash session — server stays up):
+    /console/quizzes   → 307 (auth redirect, expected)
+    /console/mock-tests → 307 (auth redirect, expected)
+    /mock-tests        → 200
+    /hi/mock-tests     → 200
+    /mock-test/foo     → 404 (no such published mock test — expected)
+    /quizzes           → 200
+    /                  → 200
+
+Constraints respected
+- Did NOT modify `src/app/(public)/quiz/[slug]/page.tsx`.
+- Did NOT modify `src/components/learning/quiz-runner.tsx`.
+- Did NOT modify `src/components/learning/lesson-editor.tsx`
+  (already has its quiz section from LESSON-QUIZ).
+- Did NOT run `bun run build`.
+- All new interactive components carry `'use client'`.
+- TypeScript strict, no `any` (used `Record<string, unknown>` for
+  dynamic upsert fields, mirroring `adminUpdateQuiz`).
+
+Stage Summary
+- Console:
+  • /console/quizzes — dedicated manager for COURSE-LEVEL quizzes
+    (lesson_id IS NULL), with AJAX course search, EN/HI tabs,
+    linked-question picker, publish + delete actions.
+  • /console/mock-tests — same pattern for mock_tests, with
+    time_limit_minutes / difficulty / attempts_allowed / question_count
+    fields.
+- Public:
+  • /mock-tests index — bilingual, SEO-optimized list of published
+    mock tests.
+  • /mock-test/[slug] — exam-experience page with countdown timer,
+    question palette, submit confirmation, auto-submit on timeout,
+    and a full results screen with per-question review.
+- API surface purely additive:
+  • Extended: GET /api/courses (added `q` filter),
+    GET /api/admin/quizzes (added `?course_only=1`),
+    POST /api/quiz/attempts (accepts `{ assessment_type, mockTestId }`).
+  • New: GET /api/admin/questions/eligible,
+    /api/admin/mock-tests (GET, POST),
+    /api/admin/mock-tests/[id] (GET, PATCH, DELETE, POST publish/add/remove).
+- The lesson-editor quiz section, the public quiz page, and the
+  quiz-runner component are all untouched.
+
+---
+Task ID: QUIZ-MOCKTEST-MASTER
+Agent: Z.ai Code (main)
+Task: Single Quiz View redesign + Lesson Quiz management + Course Quiz/Mock Test managers
+
+Work Log:
+
+TASK 1 — Single Quiz View redesign (YouTube-style):
+- QuizRunner rebuilt: one question at a time with Prev/Next navigation + question
+  palette (numbered pills showing answered/unanswered/current) + inline results
+  (score, pass/fail, per-question review with explanations).
+- /quiz/[slug] page: YouTube-style layout — quiz play area left (2/3 width on
+  desktop), related quizzes sidebar right (1/3 width). Below: Latest Quizzes +
+  Trending Quizzes (2-column grid). Next quiz card after results.
+- Mobile responsive: single column, sidebar moves below, quizzes stack vertically.
+
+TASK 2 — Lesson Quiz management (subagent LESSON-QUIZ):
+- Console lesson editor: new "Quiz" section below QNA (EN/HI tabs like MCQ/QNA).
+  Create quiz with EN+HI title/instructions + passing score. Link existing MCQ
+  questions to the quiz. Publish/delete.
+- New API routes: /api/admin/quizzes (GET+POST), /api/admin/quizzes/[id]
+  (GET+PATCH+DELETE+POST publish), /api/admin/lessons/[id]/quizzes (GET).
+- Frontend lesson page: inline quiz section at bottom (below MCQ/QNA practice).
+  "Start Quiz" button renders QuizRunner inline. Result shows on same page.
+  "Open in full page" link to /quiz/[slug] for the full experience.
+- getPublishedLessonBySlug extended to fetch lesson quizzes.
+
+TASK 3 — Course Quiz + Mock Test managers (subagent COURSE-QUIZ-MOCKTEST):
+
+Part A — Console /console/quizzes (course quiz manager):
+- Lists all course-level quizzes (lesson_id IS NULL)
+- AJAX course search + link when creating
+- EN/HI tabs for title/instructions
+- Edit + publish + delete
+- Sidebar link added
+
+Part B — Console /console/mock-tests (course mock test manager):
+- Lists all mock tests with course, time limit, difficulty, question count
+- AJAX course search + link
+- EN/HI tabs + all fields (time_limit, passing_score, difficulty, attempts_allowed)
+- Edit + publish + delete
+- New mock-test-service.ts + API routes
+- Sidebar link added
+
+Part C — Frontend mock test pages:
+- /mock-tests index page (locale-aware, SEO, EN+HI)
+- /mock-test/[slug] exam-experience page:
+  • Timer (countdown from time_limit_minutes)
+  • Question palette (right sidebar on desktop, below on mobile)
+  • One question at a time
+  • Submit with confirmation dialog
+  • Auto-submit on timeout
+  • Results: score, pass/fail, per-question review
+- MockTestRunner client component (timer + palette + submit + results)
+- Header/footer links added
+- Sitemap entries added
+
+Verification:
+- Lint: 0 errors, 0 warnings.
+- All routes 200: /, /hi, /quizzes, /hi/quizzes, /quiz/[slug], /hi/quiz/[slug],
+  /mock-tests, /hi/mock-tests, lesson pages (EN+HI).
+- Quiz page: YouTube-style layout confirmed (grid-cols, Latest, Trending).
+- Console sidebar: Quizzes + Mock Tests links present.
+- Lesson page: inline quiz section present.
+
+Stage Summary:
+- Single Quiz View: YouTube-style, modern, mobile responsive.
+- Lesson Quiz: managed in console lesson editor (EN/HI), shown inline on lesson page.
+- Course Quiz manager: dedicated /console/quizzes with AJAX course search.
+- Course Mock Test manager: dedicated /console/mock-tests.
+- Mock Test exam page: timer, question palette, exam experience.
+- All 3 tasks complete. Committed and pushed to GitHub.

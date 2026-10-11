@@ -259,11 +259,25 @@ export interface LessonQuestion {
 
 // ── Lesson page (composite view) ─────────────────────────
 
+export interface LessonQuiz {
+  id: string
+  slug: string
+  passing_score: number
+  translations: {
+    language_code: string
+    title: string
+    instructions: string | null
+    status: string
+  }[]
+  quiz_questions: { question_id: string }[]
+}
+
 export interface LessonPageData {
   lesson: Lesson
   translation: LessonTranslation
   blocks: LessonBlock[]
   questions: LessonQuestion[]
+  quizzes: LessonQuiz[]
   course: {
     id: string
     slug: string

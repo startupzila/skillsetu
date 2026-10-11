@@ -830,6 +830,14 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
         </CardContent>
       </Card>
 
+      {/* Section 5 — Quiz Manager */}
+      <QuizSection
+        lessonId={lessonId}
+        lang={lang}
+        questions={questions}
+        disabled={isPending}
+      />
+
       {/* MCQ Dialog (create + edit) */}
       <McqDialog
         open={mcqDialogOpen}
@@ -1628,6 +1636,664 @@ function QnaDialog({
               <Save className="h-4 w-4 mr-1.5" />
             )}
             {editing ? 'Save changes' : 'Create QNA'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Quiz Section ────────────────────────────────────────────────────────
+
+interface QuizTranslation {
+  id: string
+  language_code: string
+  title: string
+  instructions: string | null
+  status: string
+}
+
+interface QuizData {
+  id: string
+  slug: string
+  status: string
+  passing_score: number
+  published_at: string | null
+  created_at: string
+  translations: QuizTranslation[]
+  quiz_questions: { question_id: string }[]
+}
+
+interface QuizSectionProps {
+  lessonId: string
+  lang: Lang
+  /** All questions on the lesson — used as the pick-list when adding questions to a quiz. */
+  questions: QuestionData[]
+  disabled: boolean
+}
+
+function pickQuizTranslation(
+  quiz: QuizData,
+  lang: Lang,
+): QuizTranslation | null {
+  if (!quiz.translations || quiz.translations.length === 0) return null
+  return (
+    quiz.translations.find((t) => t.language_code === lang) ??
+    quiz.translations[0] ??
+    null
+  )
+}
+
+function QuizSection({ lessonId, lang, questions, disabled }: QuizSectionProps) {
+  const { toast } = useToast()
+  const [isPending, startTransition] = useTransition()
+  const [quizzes, setQuizzes] = useState<QuizData[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<QuizData | null>(null)
+
+  const loadQuizzes = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/lessons/${lessonId}/quizzes`)
+      if (res.ok) {
+        const json = (await res.json()) as { data?: QuizData[] }
+        setQuizzes(json.data ?? [])
+      }
+    } catch {
+      // silent — quizzes are secondary
+    }
+  }, [lessonId])
+
+  useEffect(() => {
+    loadQuizzes()
+  }, [loadQuizzes])
+
+  function openCreate() {
+    setEditing(null)
+    setDialogOpen(true)
+  }
+  function openEdit(q: QuizData) {
+    setEditing(q)
+    setDialogOpen(true)
+  }
+  function publishQuiz(quizId: string) {
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/admin/quizzes/${quizId}?action=publish`, {
+          method: 'POST',
+        })
+        const data = (await res.json()) as { error?: string }
+        if (!res.ok) {
+          toast({
+            title: 'Error',
+            description: data.error ?? 'Failed to publish quiz.',
+            variant: 'destructive',
+          })
+          return
+        }
+        toast({ title: 'Published', description: 'Quiz is now live.' })
+        await loadQuizzes()
+      } catch {
+        toast({
+          title: 'Error',
+          description: 'Something went wrong.',
+          variant: 'destructive',
+        })
+      }
+    })
+  }
+  function deleteQuiz(quizId: string) {
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/admin/quizzes/${quizId}`, {
+          method: 'DELETE',
+        })
+        const data = (await res.json()) as { error?: string }
+        if (!res.ok) {
+          toast({
+            title: 'Error',
+            description: data.error ?? 'Failed to delete quiz.',
+            variant: 'destructive',
+          })
+          return
+        }
+        toast({ title: 'Deleted', description: 'Quiz removed.' })
+        await loadQuizzes()
+      } catch {
+        toast({
+          title: 'Error',
+          description: 'Something went wrong.',
+          variant: 'destructive',
+        })
+      }
+    })
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <div>
+          <CardTitle className="text-base">
+            Quizzes
+            <span className="ml-2 text-xs font-normal text-muted-foreground uppercase">
+              {lang}
+            </span>
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            {quizzes.length} attached quiz{quizzes.length === 1 ? '' : 'zes'}.
+            Each quiz has a passing score and a set of linked questions.
+          </p>
+        </div>
+        <Button size="sm" onClick={openCreate} disabled={disabled || isPending}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          Add Quiz
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {quizzes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No quizzes yet. Click “Add Quiz” to create one.
+          </p>
+        ) : (
+          quizzes.map((quiz) => (
+            <QuizRow
+              key={quiz.id}
+              quiz={quiz}
+              lang={lang}
+              disabled={isPending}
+              onEdit={() => openEdit(quiz)}
+              onDelete={() => deleteQuiz(quiz.id)}
+              onPublish={() => publishQuiz(quiz.id)}
+            />
+          ))
+        )}
+      </CardContent>
+
+      <QuizDialog
+        open={dialogOpen}
+        onOpenChange={(o) => {
+          setDialogOpen(o)
+          if (!o) setEditing(null)
+        }}
+        lessonId={lessonId}
+        lessonQuestions={questions}
+        editing={editing}
+        lang={lang}
+        onSaved={async () => {
+          await loadQuizzes()
+        }}
+      />
+    </Card>
+  )
+}
+
+function QuizRow({
+  quiz,
+  lang,
+  disabled,
+  onEdit,
+  onDelete,
+  onPublish,
+}: {
+  quiz: QuizData
+  lang: Lang
+  disabled: boolean
+  onEdit: () => void
+  onDelete: () => void
+  onPublish: () => void
+}) {
+  const t = pickQuizTranslation(quiz, lang)
+  const questionCount = quiz.quiz_questions?.length ?? 0
+  const hi = lang === 'hi'
+  return (
+    <div className="rounded-md border bg-card p-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={quiz.status} />
+            <span className="text-[11px] text-muted-foreground">
+              /{quiz.slug}
+            </span>
+            <Badge variant="outline" className="text-[10px]">
+              {quiz.passing_score}% pass
+            </Badge>
+            <Badge variant="secondary" className="text-[10px]">
+              {questionCount} Q{questionCount === 1 ? '' : 's'}
+            </Badge>
+            {t && t.language_code !== lang && (
+              <Badge
+                variant="outline"
+                className="text-[10px] text-amber-600 border-amber-300"
+              >
+                fallback: {t.language_code}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm font-medium">{t?.title ?? quiz.slug}</p>
+          {t?.instructions && (
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {t.instructions}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col gap-1 shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onEdit}
+            disabled={disabled}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="sr-only">Edit</span>
+          </Button>
+          {quiz.status !== 'published' && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onPublish}
+              disabled={disabled}
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span className="sr-only">Publish</span>
+            </Button>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onDelete}
+            disabled={disabled}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span className="sr-only">Delete</span>
+          </Button>
+        </div>
+      </div>
+      {quiz.status === 'draft' && questionCount === 0 && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400">
+          {hi
+            ? 'क्विज़ प्रकाशित करने से पहले कम से कम एक प्रश्न जोड़ें।'
+            : 'Add at least one question before publishing the quiz.'}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ─── Quiz Dialog (create + edit) ─────────────────────────────────────────
+
+interface QuizDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  lessonId: string
+  lessonQuestions: QuestionData[]
+  editing: QuizData | null
+  lang: Lang
+  onSaved: () => Promise<void> | void
+}
+
+function QuizDialog({
+  open,
+  onOpenChange,
+  lessonId,
+  lessonQuestions,
+  editing,
+  lang,
+  onSaved,
+}: QuizDialogProps) {
+  const { toast } = useToast()
+  const [isPending, startTransition] = useTransition()
+
+  // Per-language translation state (EN + HI).
+  const [titleEn, setTitleEn] = useState('')
+  const [titleHi, setTitleHi] = useState('')
+  const [instructionsEn, setInstructionsEn] = useState('')
+  const [instructionsHi, setInstructionsHi] = useState('')
+  const [passingScore, setPassingScore] = useState<number>(60)
+
+  // The set of question_ids linked to the quiz.
+  const [linkedIds, setLinkedIds] = useState<Set<string>>(new Set())
+  const [hiExists, setHiExists] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    if (editing) {
+      const enT = editing.translations.find((x) => x.language_code === 'en')
+      const hiT = editing.translations.find((x) => x.language_code === 'hi')
+      setTitleEn(enT?.title ?? '')
+      setInstructionsEn(enT?.instructions ?? '')
+      setTitleHi(hiT?.title ?? '')
+      setInstructionsHi(hiT?.instructions ?? '')
+      setHiExists(Boolean(hiT))
+      setPassingScore(editing.passing_score ?? 60)
+      setLinkedIds(
+        new Set((editing.quiz_questions ?? []).map((qq) => qq.question_id)),
+      )
+    } else {
+      setTitleEn('')
+      setTitleHi('')
+      setInstructionsEn('')
+      setInstructionsHi('')
+      setPassingScore(60)
+      setLinkedIds(new Set())
+      setHiExists(false)
+    }
+  }, [open, editing])
+
+  function toggleLinked(questionId: string) {
+    setLinkedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+  }
+
+  function save() {
+    startTransition(async () => {
+      if (!titleEn.trim()) {
+        toast({
+          title: 'Missing English title',
+          description: 'The English title is required.',
+          variant: 'destructive',
+        })
+        return
+      }
+      try {
+        if (editing) {
+          // Update core + translations
+          const updateBody: Record<string, unknown> = {
+            passing_score: passingScore,
+            title_en: titleEn,
+            instructions_en: instructionsEn || null,
+          }
+          // Always send HI fields if HI translation exists OR user typed something.
+          if (hiExists || titleHi.trim() || instructionsHi.trim()) {
+            updateBody.title_hi = titleHi || titleEn
+            updateBody.instructions_hi = instructionsHi || null
+          }
+          const updateRes = await fetch(`/api/admin/quizzes/${editing.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateBody),
+          })
+          const updateJson = (await updateRes.json()) as { error?: string }
+          if (!updateRes.ok) {
+            toast({
+              title: 'Error',
+              description: updateJson.error ?? 'Failed to update quiz.',
+              variant: 'destructive',
+            })
+            return
+          }
+
+          // Sync linked questions.
+          const existingIds = new Set(
+            (editing.quiz_questions ?? []).map((qq) => qq.question_id),
+          )
+          // Add new links
+          for (const qid of linkedIds) {
+            if (!existingIds.has(qid)) {
+              await fetch(
+                `/api/admin/quizzes/${editing.id}?action=add-question`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ question_id: qid }),
+                },
+              )
+            }
+          }
+          // Remove unlinked
+          for (const qid of existingIds) {
+            if (!linkedIds.has(qid)) {
+              await fetch(
+                `/api/admin/quizzes/${editing.id}?action=remove-question`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ question_id: qid }),
+                },
+              )
+            }
+          }
+          toast({
+            title: 'Saved',
+            description:
+              lang === 'hi'
+                ? 'क्विज़ हिंदी अनुवाद सहित सहेजा गया।'
+                : 'Quiz updated.',
+          })
+        } else {
+          // Create flow
+          const slug = `quiz-${Date.now().toString(36)}`
+          const createRes = await fetch('/api/admin/quizzes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lesson_id: lessonId,
+              slug,
+              passing_score: passingScore,
+              title_en: titleEn,
+              title_hi: titleHi.trim() ? titleHi : undefined,
+              instructions_en: instructionsEn || undefined,
+              instructions_hi: instructionsHi || undefined,
+            }),
+          })
+          const createJson = (await createRes.json()) as {
+            data?: { id: string }
+            error?: string
+          }
+          if (!createRes.ok) {
+            toast({
+              title: 'Error',
+              description: createJson.error ?? 'Failed to create quiz.',
+              variant: 'destructive',
+            })
+            return
+          }
+          const newQuizId = createJson.data?.id
+          // Link any pre-selected questions.
+          if (newQuizId) {
+            for (const qid of linkedIds) {
+              await fetch(
+                `/api/admin/quizzes/${newQuizId}?action=add-question`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ question_id: qid }),
+                },
+              )
+            }
+          }
+          toast({ title: 'Created', description: 'Quiz added to lesson.' })
+        }
+        await onSaved()
+        onOpenChange(false)
+      } catch {
+        toast({
+          title: 'Error',
+          description: 'Something went wrong.',
+          variant: 'destructive',
+        })
+      }
+    })
+  }
+
+  // Only MCQ-style questions make sense in a graded quiz (descriptive can't
+  // be auto-graded). Show the available MCQ questions for the lesson.
+  const mcqs = lessonQuestions.filter(
+    (q) => (MCQ_TYPES as readonly string[]).includes(q.question_type),
+  )
+
+  const canSave = !isPending && titleEn.trim().length > 0
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {editing ? 'Edit quiz' : 'Add quiz'}
+          </DialogTitle>
+          <DialogDescription>
+            {editing
+              ? `Update the quiz title, instructions, passing score, and linked questions (${lang.toUpperCase()} translation shown).`
+              : 'Create a new graded quiz attached to this lesson.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Language banner */}
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+            <span>
+              Editing the <strong>{lang.toUpperCase()}</strong> fields. The
+              other language is preserved when you save. (English title is
+              always required.)
+            </span>
+          </div>
+
+          {/* Title */}
+          <div className="space-y-2">
+            <Label>
+              Title
+              <span className="ml-1 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
+            </Label>
+            <Input
+              value={lang === 'hi' ? titleHi : titleEn}
+              onChange={(e) =>
+                lang === 'hi'
+                  ? setTitleHi(e.target.value)
+                  : setTitleEn(e.target.value)
+              }
+              placeholder={lang === 'hi' ? 'क्विज़ का शीर्षक' : 'Quiz title'}
+              disabled={isPending}
+            />
+          </div>
+
+          {/* Instructions */}
+          <div className="space-y-2">
+            <Label>
+              Instructions (optional)
+              <span className="ml-1 text-xs font-normal text-muted-foreground uppercase">
+                {lang}
+              </span>
+            </Label>
+            <Textarea
+              value={lang === 'hi' ? instructionsHi : instructionsEn}
+              onChange={(e) =>
+                lang === 'hi'
+                  ? setInstructionsHi(e.target.value)
+                  : setInstructionsEn(e.target.value)
+              }
+              placeholder={
+                lang === 'hi'
+                  ? 'शिक्षार्थियों के लिए निर्देश…'
+                  : 'Instructions shown to learners before they start…'
+              }
+              className="min-h-[80px]"
+              disabled={isPending}
+            />
+          </div>
+
+          {/* Passing score */}
+          <div className="space-y-2">
+            <Label htmlFor="passing-score">Passing score (%)</Label>
+            <Input
+              id="passing-score"
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={passingScore}
+              onChange={(e) =>
+                setPassingScore(
+                  e.target.value === '' ? 0 : Number(e.target.value),
+                )
+              }
+              disabled={isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              Learners scoring at or above this percentage pass the quiz.
+            </p>
+          </div>
+
+          {/* Linked questions */}
+          <div className="space-y-2">
+            <Label>Linked questions</Label>
+            <p className="text-xs text-muted-foreground">
+              Pick the MCQs from this lesson to include in the quiz. Only
+              multiple-choice / true-false questions can be auto-graded.
+            </p>
+            {mcqs.length === 0 ? (
+              <div className="rounded-md border border-dashed bg-muted/20 p-3 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No MCQs on this lesson yet. Add some in the
+                  “Multiple-choice questions” section above first.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto rounded-md border p-2">
+                {mcqs.map((q) => {
+                  const qt = pickTranslation(q, lang)
+                  const isLinked = linkedIds.has(q.id)
+                  return (
+                    <label
+                      key={q.id}
+                      className={`flex items-start gap-2.5 rounded-md border p-2 cursor-pointer transition-colors ${
+                        isLinked
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:bg-accent/40'
+                      }`}
+                    >
+                      <Checkbox
+                        checked={isLinked}
+                        onCheckedChange={() => toggleLinked(q.id)}
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px]">
+                            {TYPE_LABEL[q.question_type] ?? q.question_type}
+                          </Badge>
+                          <StatusBadge status={q.status} />
+                        </div>
+                        <p
+                          className="text-sm mt-1 line-clamp-2 prose prose-sm dark:prose-invert max-w-none text-foreground"
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizeHtml(qt?.question_text ?? ''),
+                          }}
+                        />
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {linkedIds.size} question{linkedIds.size === 1 ? '' : 's'} linked.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={!canSave}>
+            {isPending ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1.5" />
+            )}
+            {editing ? 'Save changes' : 'Create quiz'}
           </Button>
         </DialogFooter>
       </DialogContent>
