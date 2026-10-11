@@ -2296,3 +2296,50 @@ Stage Summary:
 - Speed analysis doc updated with final status.
 - Mobile responsive verified across all pages.
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: COURSE-BTN-DIRECTORY
+Agent: Z.ai Code (main)
+Task: Hide Sign up free on course page when logged in + Centres Directory page
+
+Work Log:
+
+FIX 1 — Course page "Sign up free" button:
+- Course page now calls getSessionFast() and conditionally renders the
+  "Sign up free" button only when session is null (logged out).
+- "Start learning" button always shows.
+- Verified: logged out → both buttons. Logged in → only "Start learning".
+
+FIX 2 — Centres Directory page:
+- New /centres/directory page with:
+  • Country (fixed to India) → State → District → City cascading dropdown filters
+  • Search by centre name (debounced)
+  • Quick links to state-level location pages (chips)
+  • Results grid with centre cards (name, location, verified badge)
+  • SEO content section
+  • Locale-aware (EN/HI labels)
+- New API endpoint: /api/centres/search (GET with state/district/city/q params)
+  Returns verified training centres matching filters with their primary location.
+- New client component: CentresDirectoryBrowser — handles AJAX cascading
+  dropdowns (state → districts → cities), debounced search, and renders results.
+- Uses existing jurisdiction infrastructure (jurisdictions table + API routes
+  /api/jurisdictions/states, /districts, /cities).
+- Footer: added "Centres Directory" link in the Learn section (between
+  Centres and Books).
+- Mobile responsive: filters stack vertically, results grid collapses to 1 column.
+
+Verification:
+- Lint: 0 errors, 0 warnings.
+- All routes 200: /, /courses/[slug], /centres/directory, /hi/centres/directory,
+  /api/centres/search.
+- Course page: logged out → "Sign up free" shows. Logged in → hidden. ✅
+- Directory page: "Centres Directory" heading + "Browse by State" + search + 
+  filter dropdowns all present. ✅
+- Search API: returns "Excel Mastery Academy" (Mumbai, Maharashtra, India). ✅
+- Footer: "Centres Directory" link present. ✅
+
+Stage Summary:
+- Course page: Sign up button hides when logged in.
+- Centres Directory: world-class directory page with cascading location filters
+  + search, linked from footer.
+- All changes committed and pushed to GitHub.

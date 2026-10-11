@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { getLocale, localePath } from '@/lib/i18n/locale'
 import { t as tt } from '@/lib/i18n/dictionary'
+import { getSessionFast } from '@/lib/auth/session-fast'
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -80,6 +81,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CoursePage({ params }: PageProps) {
   const { slug } = await params
   const lang = await getLocale()
+  const session = await getSessionFast().catch(() => null)
 
   // Fetch resiliently
   let course
@@ -199,9 +201,11 @@ export default async function CoursePage({ params }: PageProps) {
                 {tt(lang, 'course.startLearning')}
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/register">{tt(lang, 'course.signUpFree')}</Link>
-            </Button>
+            {!session && (
+              <Button asChild size="lg" variant="outline">
+                <Link href="/register">{tt(lang, 'course.signUpFree')}</Link>
+              </Button>
+            )}
           </div>
         </div>
 
