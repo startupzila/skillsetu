@@ -2464,3 +2464,31 @@ Stage Summary:
 - Keywords cover the exact patterns the user requested plus course-specific
   and type-specific variants.
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: FIX-CENTRES-JURISDICTION
+Agent: Z.ai Code (main)
+Task: Fix centres not showing on state/district jurisdiction pages
+
+Work Log:
+- Root cause: state and district pages used `.contains('locations', [{ state: ... }])`
+  to filter centres. But `locations` is a NESTED relation (centre_locations table joined
+  via Supabase), NOT a JSONB column on training_centres. PostgREST doesn't support
+  `.contains()` on nested relation columns — it throws "column does not exist".
+  This silently returned 0 results (the query errored, safeFetch caught it, and
+  the page rendered "No centres found").
+
+- Fix: changed both state and district pages to fetch ALL verified centres
+  (with nested locations), then filter in JavaScript — same pattern the city
+  page already used successfully.
+
+  State page: filter by `locations.some(l => l.state === stateName)`
+  District page: filter by `locations.some(l => l.state === stateName && l.district === districtName)`
+
+- Verified: "Excel Mastery Academy" now appears on:
+  • /centres/locations/maharashtra (state page) ✅
+  • /centres/locations/maharashtra/mumbai (district page) ✅
+  • /centres/locations/maharashtra/mumbai/andheri (city page — was already working) ✅
+  • /centres (main listing — was already working) ✅
+
+- Lint: 0 errors, 0 warnings.

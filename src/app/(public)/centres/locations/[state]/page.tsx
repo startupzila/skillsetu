@@ -42,10 +42,17 @@ export default async function StateCentresPage({ params }: PageProps) {
     const supabase = await createServerSupabaseClient()
     const { data: stateJur } = await supabase.from('jurisdictions').select('id').eq('name', stateName).eq('type', 'state').single()
     const { data: districts } = await supabase.from('jurisdictions').select('id, name').eq('type', 'district').eq('parent_id', stateJur?.id ?? '').eq('is_active', true).order('name')
-    const { data: centres } = await supabase.from('training_centres')
-      .select(`id, slug, name, about, established_year, locations:centre_locations(city, state, is_primary)`)
-      .eq('status', 'verified').contains('locations', [{ state: stateName }]).order('name')
-    return { stateFound: !!stateJur, districts: districts ?? [], centres: centres ?? [] }
+    // Fetch all verified centres with their locations, then filter in JS
+    // (can't use .contains on nested relation column)
+    const { data: allCentres } = await supabase.from('training_centres')
+      .select(`id, slug, name, about, established_year, locations:centre_locations(city, district, state, is_primary)`)
+      .eq('status', 'verified')
+      .order('name')
+    const centres = (allCentres ?? []).filter((c: Record<string, unknown>) => {
+      const locs = c.locations as Array<Record<string, unknown>>
+      return locs?.some(l => (l.state as string)?.toLowerCase() === stateName.toLowerCase())
+    })
+    return { stateFound: !!stateJur, districts: districts ?? [], centres }
   })
 
   if (!data) return <ServiceUnavailable />
