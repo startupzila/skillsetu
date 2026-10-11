@@ -4,7 +4,7 @@ import { listVerifiedCentres } from '@/lib/features/feature-service'
 import { listStates } from '@/lib/features/jurisdiction-service'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Globe, MapPin, Search } from 'lucide-react'
 import { CentresBrowser } from '@/components/shared/centres-browser'
 import { safeFetch, safeFetchOr } from '@/lib/safe-fetch'
 
@@ -35,9 +35,16 @@ export default async function CentresPage({ searchParams }: { searchParams: Prom
       <div className="mt-6 mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Skill & Training Centres</h1>
-          <p className="text-muted-foreground mt-2">
-            Find verified skills and training institutes near you. Browse courses, fees, reviews, and admission details.
+          <p className="text-muted-foreground mt-2 max-w-2xl">
+            Search centres by state, district and city. Search by name too. View centre pages with courses, fees, reviews and contact details.
           </p>
+          <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5"><Globe className="h-4 w-4 text-primary" /> By Country</span>
+            <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> By State</span>
+            <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> By District</span>
+            <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> By City</span>
+            <span className="flex items-center gap-1.5"><Search className="h-4 w-4 text-primary" /> Search by name</span>
+          </div>
         </div>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/centres/register"><Plus className="h-4 w-4 mr-1.5" />Register Centre</Link>

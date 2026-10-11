@@ -1,29 +1,29 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
-import { CentresDirectoryBrowser } from '@/components/shared/centres-directory-browser'
+import { JurisdictionDirectoryBrowser } from '@/components/shared/jurisdiction-directory-browser'
 import { safeFetch } from '@/lib/safe-fetch'
 import { getLocale, localePath } from '@/lib/i18n/locale'
 import { t as tt } from '@/lib/i18n/dictionary'
 import { listStates } from '@/lib/features/jurisdiction-service'
-import { Globe, Search, MapPin } from 'lucide-react'
+import { Globe, Search, MapPin, Building2 } from 'lucide-react'
 
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLocale()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
   const title = lang === 'hi'
     ? 'सेंटर डायरेक्टरी — राज्य, ज़िला, शहर अनुसार खोजें | MioDemy'
-    : 'Centres Directory — Search by State, District, City | MioDemy'
+    : 'Centres Directory — Browse by State, District & City | MioDemy'
   const desc = lang === 'hi'
-    ? 'भारत भर के स्किल और ट्रेनिंग सेंटर खोजें। राज्य, ज़िला और शहर के अनुसार फ़िल्टर करें, नाम से खोजें, और अपने नज़दीकी सेंटर का पेज देखें।'
-    : 'Find skill and training centres across India. Filter by state, district and city, search by name, and view centre pages with courses, fees, reviews and contact details.'
+    ? 'भारत भर के स्किल और ट्रेनिंग सेंटर खोजें। राज्य, ज़िला और शहर के अनुसार ब्राउज़ करें। हर स्थान का विशेष SEO-अनुकूलित पेज।'
+    : 'Browse skill and training centres across India by state, district and city. Each location has a dedicated SEO-optimized page with centres directory.'
 
   return {
     title,
     description: desc,
     keywords: lang === 'hi'
-      ? ['सेंटर डायरेक्टरी', 'ट्रेनिंग सेंटर', 'स्किल सेंटर', 'भारत', 'राज्य', 'ज़िला', 'शहर']
-      : ['centres directory', 'training centres', 'skill centres', 'India', 'state', 'district', 'city', 'find institutes'],
+      ? ['सेंटर डायरेक्टरी', 'ट्रेनिंग सेंटर', 'स्किल सेंटर', 'भारत', 'राज्य', 'ज़िला', 'शहर', 'SEO']
+      : ['centres directory', 'training centres directory', 'skill centres', 'India', 'state', 'district', 'city', 'SEO', 'browse by location'],
     alternates: {
       canonical: `${siteUrl}${localePath(lang, '/centres/directory')}`,
     },
@@ -35,7 +35,7 @@ export default async function CentresDirectoryPage() {
   const lang = await getLocale()
   const hi = lang === 'hi'
 
-  // Fetch states for the initial dropdown (SSR)
+  // Fetch states for the initial accordion (SSR)
   const states = await safeFetch(() => listStates('IN')) ?? []
 
   return (
@@ -55,30 +55,35 @@ export default async function CentresDirectoryPage() {
         </h1>
         <p className="text-muted-foreground mt-2 max-w-2xl">
           {hi
-            ? 'राज्य, ज़िला और शहर के अनुसार सेंटर खोजें। नाम से भी खोज सकते हैं। अपने नज़दीकी सेंटर का पेज देखें — courses, fees, reviews और contact details।'
-            : 'Search centres by state, district and city. Search by name too. View centre pages with courses, fees, reviews and contact details.'}
+            ? 'राज्य, ज़िला और शहर के अनुसार ब्राउज़ करें। हर स्थान का विशेष पेज है जो search engines में index होता है। नीचे किसी भी राज्य पर click करके expand करें।'
+            : 'Browse by state, district and city. Each location has a dedicated SEO-optimized page indexed by search engines. Click any state below to expand.'}
         </p>
         <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5"><Globe className="h-4 w-4 text-primary" /> {hi ? 'देश अनुसार' : 'By Country'}</span>
-          <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> {hi ? 'राज्य अनुसार' : 'By State'}</span>
-          <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> {hi ? 'ज़िला अनुसार' : 'By District'}</span>
-          <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> {hi ? 'शहर अनुसार' : 'By City'}</span>
-          <span className="flex items-center gap-1.5"><Search className="h-4 w-4 text-primary" /> {hi ? 'नाम से खोजें' : 'Search by name'}</span>
+          <span className="flex items-center gap-1.5"><Globe className="h-4 w-4 text-primary" /> {hi ? 'देश' : 'Country'}</span>
+          <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> {hi ? 'राज्य' : 'State'}</span>
+          <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> {hi ? 'ज़िला' : 'District'}</span>
+          <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-primary" /> {hi ? 'शहर' : 'City'}</span>
+          <span className="flex items-center gap-1.5"><Search className="h-4 w-4 text-primary" /> {hi ? 'खोजें' : 'Search'}</span>
         </div>
       </div>
 
-      {/* Directory browser (client component with cascading filters + search) */}
-      <CentresDirectoryBrowser lang={lang} initialStates={states} />
+      {/* Jurisdiction directory browser (accordion + search + filter) */}
+      <JurisdictionDirectoryBrowser lang={lang} initialStates={states} />
 
       {/* SEO content */}
       <div className="mt-12 prose prose-sm max-w-none text-muted-foreground">
         <h2 className="text-xl font-bold text-foreground">
-          {hi ? 'भारत भर के ट्रेनिंग सेंटर' : 'Training Centres Across India'}
+          {hi ? 'भारत भर के ट्रेनिंग सेंटर — SEO अनुकूलित पेज' : 'Training Centres Across India — SEO-Optimized Location Pages'}
         </h2>
         <p>
           {hi
-            ? 'हमारी डायरेक्टरी में भारत के सभी प्रमुख राज्यों और शहरों के verified स्किल और ट्रेनिंग सेंटर शामिल हैं। Excel, Tally, Digital Marketing, Computer Training और बहुत कुछ सीखने के लिए अपने नज़दीकी सेंटर खोजें। हर सेंटर की details — courses, fees, reviews, contact — एक ही जगह पर उपलब्ध हैं।'
-            : 'Our directory includes verified skill and training centres across all major states and cities in India. Find centres near you for Excel, Tally, Digital Marketing, Computer Training and more. Each centre\'s details — courses, fees, reviews, contact information — are available in one place.'}
+            ? 'हमारी डायरेक्टरी में भारत के सभी प्रमुख राज्यों, ज़िलों और शहरों के लिए विशेष पेज हैं। ये पेज search engines में index होते हैं ताकि आप "Skill Centres in Nagod", "Training Centres in Satna", "Skill & Training Centres in Madhya Pradesh" जैसे keywords पर आसानी से अपने नज़दीकी सेंटर ढूंढ सकें।'
+            : 'Our directory includes dedicated, SEO-optimized pages for every state, district and city in India. These pages are indexed by search engines so you can easily find centres near you by searching keywords like "Skill Centres in Nagod", "Training Centres in Satna", "Skill & Training Centres in Madhya Pradesh" etc.'}
+        </p>
+        <p>
+          {hi
+            ? 'हर पेज पर उस स्थान के verified सेंटर की सूची, courses, fees, reviews और contact details उपलब्ध हैं। नीचे दिए गए accordion से किसी भी राज्य को expand करें, फिर ज़िला और शहर चुनें।'
+            : 'Each page lists verified centres in that location with courses, fees, reviews and contact details. Expand any state in the accordion below, then select a district and city.'}
         </p>
       </div>
     </div>

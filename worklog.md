@@ -2343,3 +2343,63 @@ Stage Summary:
 - Centres Directory: world-class directory page with cascading location filters
   + search, linked from footer.
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: CENTRES-DIRECTORY-FIX
+Agent: Zai Code (main)
+Task: Fix /centres page + redesign /centres/directory as jurisdiction taxonomy directory
+
+Work Log:
+
+FIX 1 — /centres page header updated:
+- Added directory-style header text: "Search centres by state, district and city.
+  Search by name too. View centre pages with courses, fees, reviews and contact details."
+- Added feature badges: By Country, By State, By District, By City, Search by name
+- Kept the "Use My Location" button (was already there in CentresBrowser)
+- Kept the existing search + hierarchical filter + results grid (centres filtering)
+
+FIX 2 — /centres/directory redesigned as Jurisdiction Taxonomy Directory:
+- New design: accordion-style directory of jurisdiction location pages
+- Default view: shows states (collapsed) — each with "View" link to /centres/locations/[state]
+- Click a state → expands to show districts (AJAX loaded)
+  - Each district has "View" link to /centres/locations/[state]/[district]
+- Click a district → expands to show cities (AJAX loaded)
+  - Each city has "View" link to /centres/locations/[state]/[district]/[city]
+- Search filter at top: filters jurisdictions by name (live)
+- Quick nav dropdown filter: State → District → City dropdowns with "View" links
+- SEO content section explaining the directory structure
+- Mobile responsive: accordion stacks, dropdowns stack
+
+New component: JurisdictionDirectoryBrowser (client component)
+- Accordion state management (expanded states/districts)
+- AJAX caching for districts + cities (fetch once, cache)
+- Search filter (filters states by name + checks cached districts/cities)
+- Quick nav dropdown filter with "View" links
+
+This directory page is DIFFERENT from /centres:
+- /centres: filters and searches CENTRES (training institutes) — AJAX results
+- /centres/directory: browses JURISDICTION PAGES (location directory) — links to
+  dedicated SEO pages at /centres/locations/[state]/[district]/[city]
+
+The existing jurisdiction pages (/centres/locations/*) already have:
+- SEO-optimized titles: "Skill & Training Centres in [Location]"
+- SEO content with keyword-rich descriptions
+- Centre listings for that location
+- Breadcrumbs with full hierarchy
+- FAQ sections (on city pages)
+
+Verification:
+- Lint: 0 errors, 0 warnings.
+- All routes 200: /centres, /centres/directory, /hi/centres/directory,
+  /centres/locations/[state], /centres/locations/[state]/[district],
+  /centres/locations/[state]/[district]/[city]
+- /centres: new header text + feature badges + "Use My Location" button present.
+- /centres/directory: "Centres Directory" heading + "Maharashtra" in accordion +
+  "SEO-Optimized" content section present.
+
+Stage Summary:
+- /centres: updated header to match directory style, kept existing search/filter/Use My Location.
+- /centres/directory: completely redesigned as jurisdiction taxonomy accordion
+  directory with State→District→City expansion + search + quick nav links.
+- Both pages serve different purposes (centres search vs location pages directory).
+- All changes committed and pushed to GitHub.
