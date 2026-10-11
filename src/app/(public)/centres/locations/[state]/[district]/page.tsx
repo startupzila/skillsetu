@@ -4,9 +4,12 @@ import type { Metadata } from 'next'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Building2, MapPin, ChevronRight } from 'lucide-react'
 import { safeFetch } from '@/lib/safe-fetch'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { generateJurisdictionSeo } from '@/lib/templates/jurisdiction-seo-templates'
+import { JsonLdFaq } from '@/components/seo/json-ld'
 
 interface PageProps { params: Promise<{ state: string; district: string }> }
 
@@ -15,60 +18,69 @@ function humanize(slug: string) { return slug.split('-').map(w => w.charAt(0).to
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { state, district } = await params
   const stateName = humanize(state), districtName = humanize(district)
+  const seo = generateJurisdictionSeo({ locationName: districtName, parentName: stateName, type: 'district' })
   return {
-    title: `Skill & Training Centres in ${districtName}, ${stateName} | MioDemy`,
-    description: `Find verified skill and training centres in ${districtName}, ${stateName}. Browse courses, fees, reviews and admission details for training institutes in ${districtName}.`,
+    title: seo.seo_title,
+    description: seo.seo_description,
+    keywords: seo.keywords,
+    openGraph: {
+      title: seo.seo_title,
+      description: seo.seo_description,
+      type: 'website',
+    },
   }
 }
 
 export default async function DistrictCentresPage({ params }: PageProps) {
   const { state, district } = await params
   const stateName = humanize(state), districtName = humanize(district)
+  const seo = generateJurisdictionSeo({ locationName: districtName, parentName: stateName, type: 'district' })
 
-  // Wrap all Supabase access in safeFetch so a missing-env-var deploy
-  // renders a friendly fallback instead of a 500.
   const data = await safeFetch(async () => {
     const supabase = await createServerSupabaseClient()
     const { data: distJur } = await supabase.from('jurisdictions').select('id').eq('name', districtName).eq('type', 'district').single()
     const { data: cities } = await supabase.from('jurisdictions').select('id, name').eq('type', 'city').eq('parent_id', distJur?.id ?? '').eq('is_active', true).order('name')
-    const { data: allCentres } = await supabase.from('training_centres')
+    const { data: centres } = await supabase.from('training_centres')
       .select(`id, slug, name, about, established_year, locations:centre_locations(city, district, state, is_primary)`)
-      .eq('status', 'verified')
-    return { distFound: !!distJur, cities: cities ?? [], allCentres: allCentres ?? [] }
+      .eq('status', 'verified').contains('locations', [{ state: stateName, district: districtName }]).order('name')
+    return { districtFound: !!distJur, cities: cities ?? [], centres: centres ?? [] }
   })
 
   if (!data) return <ServiceUnavailable />
-  const { distFound, cities, allCentres } = data
-  if (!distFound) notFound()
-
-  const centres = allCentres.filter((c: Record<string, unknown>) => {
-    const locs = c.locations as Array<Record<string, unknown>>
-    return locs?.some(l => (l.district as string)?.toLowerCase() === districtName.toLowerCase() || (l.city as string)?.toLowerCase() === districtName.toLowerCase())
-  })
+  const { districtFound, cities, centres } = data
+  if (!districtFound) notFound()
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Centres', href: '/centres' }, { label: 'By Location', href: '/centres/locations' }, { label: stateName, href: `/centres/locations/${state}` }, { label: districtName }]} />
+      <JsonLdFaq faqs={seo.faqs} />
+
+      <Breadcrumbs items={[
+        { label: 'Home', href: '/' }, { label: 'Centres', href: '/centres' }, { label: 'Directory', href: '/centres/directory' },
+        { label: stateName, href: `/centres/locations/${state}` }, { label: districtName }
+      ]} />
+
       <div className="mt-6 mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Training Centres in {districtName}, {stateName}</h1>
-        <p className="text-muted-foreground mt-2">{centres.length} centre{centres.length !== 1 ? 's' : ''} found in {districtName}.</p>
+        <p className="text-muted-foreground mt-2 max-w-2xl">{seo.intro_paragraph}</p>
       </div>
 
+      {/* Cities */}
       {(cities ?? []).length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Browse by City/Tehsil</h2>
+          <h2 className="text-lg font-semibold mb-3">Browse by City in {districtName}</h2>
           <div className="flex flex-wrap gap-2">
             {cities?.map((c: Record<string, unknown>) => {
               const cSlug = (c.name as string).toLowerCase().replace(/\s+/g, '-')
-              return <Link key={c.id as string} href={`/centres/locations/${state}/${district}/${cSlug}`} className="rounded-full border px-4 py-1.5 text-sm hover:bg-accent">{c.name as string}</Link>
+              return <Link key={c.id as string} href={`/centres/locations/${state}/${district}/${cSlug}`} className="rounded-full border px-4 py-1.5 text-sm hover:bg-accent hover:border-primary/30 transition-colors">{c.name as string}</Link>
             })}
           </div>
         </div>
       )}
 
-      {centres.length > 0 ? (
+      {/* Centres */}
+      {(centres ?? []).length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-12">
-          {centres.map((c: Record<string, unknown>) => {
+          {centres?.map((c: Record<string, unknown>) => {
             const locs = c.locations as Array<Record<string, unknown>>
             const loc = locs?.find(l => l.is_primary) ?? locs?.[0]
             return (
@@ -87,12 +99,34 @@ export default async function DistrictCentresPage({ params }: PageProps) {
             )
           })}
         </div>
-      ) : <p className="text-sm text-muted-foreground text-center py-8 mb-12">No centres found in {districtName} yet.</p>}
+      ) : <p className="text-sm text-muted-foreground text-center py-8 mb-12">No centres found in {districtName} yet. <Link href="/centres/register" className="text-primary hover:underline">Register your centre</Link></p>}
 
-      <div className="prose prose-sm max-w-none text-muted-foreground">
-        <h2 className="text-xl font-bold text-foreground">Training Centres in {districtName}, {stateName}</h2>
-        <p>Find verified skill and training centres in {districtName}, {stateName}. Browse institutes offering courses in Excel, Tally, Digital Marketing, computer skills and more. Each centre profile includes courses, fees, reviews and contact information.</p>
-      </div>
+      {/* ── Auto-generated SEO content ── */}
+      <section className="border-t pt-10 prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+        <h2 className="text-xl font-bold text-foreground">About Training Centres in {districtName}, {stateName}</h2>
+        <p>{seo.intro_paragraph}</p>
+
+        <div className="not-prose flex flex-wrap gap-1.5 mt-4">
+          {seo.keywords.slice(0, 20).map((kw) => (
+            <Badge key={kw} variant="outline" className="text-xs font-normal">{kw}</Badge>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQs */}
+      <section className="border-t pt-10 mb-10">
+        <h2 className="text-2xl font-bold tracking-tight mb-4">Frequently Asked Questions</h2>
+        <div className="space-y-3">
+          {seo.faqs.map((faq, i) => (
+            <Card key={i}>
+              <CardContent className="py-4">
+                <h3 className="font-semibold text-sm mb-1">{faq.q}</h3>
+                <p className="text-sm text-muted-foreground">{faq.a}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

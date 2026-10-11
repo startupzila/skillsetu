@@ -2403,3 +2403,64 @@ Stage Summary:
   directory with State→District→City expansion + search + quick nav links.
 - Both pages serve different purposes (centres search vs location pages directory).
 - All changes committed and pushed to GitHub.
+
+---
+Task ID: JURISDICTION-SEO
+Agent: Z.ai Code (main)
+Task: Auto-generate SEO content for all jurisdiction pages (State, District, City)
+
+Work Log:
+
+- New SEO template generator: src/lib/templates/jurisdiction-seo-templates.ts
+  - generateJurisdictionSeo({ locationName, parentName, type })
+  - Returns: seo_title, seo_description, keywords[], intro_paragraph, faqs[]
+  - Generates 30+ keywords per location including:
+    • "Skill Centres in [Location]"
+    • "Training Centres in [Location]"
+    • "Skill & Training Centres in [Location]"
+    • "Computer Training Centres in [Location]"
+    • "[Location] [Parent]" combos (e.g. "Skill Centres in Nagod Satna")
+    • Course-specific: "Excel training in [Location]", "Tally classes in [Location]",
+      "Digital Marketing training in [Location]", etc. (9 courses × 3 patterns = 27 keywords)
+    • Type-specific: "training centres near [Location]", "best training institutes in [Location]", etc.
+  - 5 auto-generated FAQs per location (how to find, verification, courses, registration, contact)
+
+- Updated state page (/centres/locations/[state]):
+  • generateMetadata uses seo_title + seo_description + keywords
+  • Page header shows auto-generated intro_paragraph
+  • New "About Training Centres in [State]" section with intro + 20 keyword badges
+  • FAQ section with 5 auto-generated Q&As
+  • FAQPage JSON-LD for rich search results
+  • Updated breadcrumbs (Directory → State)
+
+- Updated district page (/centres/locations/[state]/[district]):
+  • Same SEO content pattern, with parentName (state) context
+  • Keywords include "Skill Centres in [District] [State]" combos
+  • City-level browse chips (existing) + SEO content + FAQs
+
+- Updated city page (/centres/locations/[state]/[district]/[city]):
+  • Same SEO content pattern, with parentName (district) context
+  • Keywords include "Skill Centres in [City] [District]" combos
+  • Centre listings + SEO content + FAQs + FAQPage JSON-LD
+
+All SEO content is AUTO-GENERATED from the jurisdiction name — when a new
+jurisdiction is added to the DB, the page automatically generates all
+keywords, intro paragraph, and FAQs. No manual SEO work needed.
+
+Verification:
+- Lint: 0 errors, 0 warnings.
+- State page (Maharashtra): "Skill Centres in Maharashtra", "Training Centres in
+  Maharashtra", "Excel training in Maharashtra", "About Training Centres",
+  "Frequently Asked", "FAQPage" — all present.
+- District page (Satna): "Skill Centres in Satna", "Training Centres in Satna",
+  "Digital Marketing training in Satna", "FAQPage" — all present.
+- City page (Nagod): "Skill Centres in Nagod", "Training Centres in Nagod",
+  "Excel training in Nagod", "Tally classes in Nagod", "FAQPage" — all present.
+
+Stage Summary:
+- All 3 jurisdiction page types (State, District, City) now have auto-generated
+  SEO content (30+ keywords, intro paragraph, 5 FAQs, FAQPage JSON-LD).
+- Content is generated from the jurisdiction name — no manual SEO needed.
+- Keywords cover the exact patterns the user requested plus course-specific
+  and type-specific variants.
+- All changes committed and pushed to GitHub.

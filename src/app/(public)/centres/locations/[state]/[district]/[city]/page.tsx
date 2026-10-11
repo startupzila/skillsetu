@@ -3,9 +3,12 @@ import type { Metadata } from 'next'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Building2, MapPin } from 'lucide-react'
 import { safeFetch } from '@/lib/safe-fetch'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { generateJurisdictionSeo } from '@/lib/templates/jurisdiction-seo-templates'
+import { JsonLdFaq } from '@/components/seo/json-ld'
 
 interface PageProps { params: Promise<{ state: string; district: string; city: string }> }
 
@@ -14,18 +17,24 @@ function humanize(slug: string) { return slug.split('-').map(w => w.charAt(0).to
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { state, district, city } = await params
   const cityName = humanize(city), stateName = humanize(state), districtName = humanize(district)
+  const seo = generateJurisdictionSeo({ locationName: cityName, parentName: districtName, type: 'city' })
   return {
-    title: `Skill & Training Centres in ${cityName}, ${districtName}, ${stateName} | MioDemy`,
-    description: `Find verified skill and training centres in ${cityName}, ${districtName}, ${stateName}. Browse courses, fees, reviews and contact details for training institutes in ${cityName}.`,
+    title: seo.seo_title,
+    description: seo.seo_description,
+    keywords: seo.keywords,
+    openGraph: {
+      title: seo.seo_title,
+      description: seo.seo_description,
+      type: 'website',
+    },
   }
 }
 
 export default async function CityCentresPage({ params }: PageProps) {
   const { state, district, city } = await params
   const stateName = humanize(state), districtName = humanize(district), cityName = humanize(city)
+  const seo = generateJurisdictionSeo({ locationName: cityName, parentName: districtName, type: 'city' })
 
-  // Wrap all Supabase access in safeFetch so a missing-env-var deploy
-  // renders a friendly fallback instead of a 500.
   const allCentres = await safeFetch(async () => {
     const supabase = await createServerSupabaseClient()
     const { data } = await supabase.from('training_centres')
@@ -43,13 +52,16 @@ export default async function CityCentresPage({ params }: PageProps) {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <JsonLdFaq faqs={seo.faqs} />
+
       <Breadcrumbs items={[
-        { label: 'Home', href: '/' }, { label: 'Centres', href: '/centres' }, { label: 'By Location', href: '/centres/locations' },
+        { label: 'Home', href: '/' }, { label: 'Centres', href: '/centres' }, { label: 'Directory', href: '/centres/locations' },
         { label: stateName, href: `/centres/locations/${state}` }, { label: districtName, href: `/centres/locations/${state}/${district}` }, { label: cityName }
       ]} />
+
       <div className="mt-6 mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Training Centres in {cityName}, {districtName}</h1>
-        <p className="text-muted-foreground mt-2">{centres.length} centre{centres.length !== 1 ? 's' : ''} found in {cityName}.</p>
+        <p className="text-muted-foreground mt-2 max-w-2xl">{seo.intro_paragraph}</p>
       </div>
 
       {centres.length > 0 ? (
@@ -71,19 +83,32 @@ export default async function CityCentresPage({ params }: PageProps) {
         </div>
       ) : <p className="text-sm text-muted-foreground text-center py-8 mb-12">No centres found in {cityName} yet. <Link href="/centres/register" className="text-primary hover:underline">Register your centre</Link></p>}
 
-      {/* SEO content */}
-      <div className="prose prose-sm max-w-none text-muted-foreground">
-        <h2 className="text-xl font-bold text-foreground">Skill & Training Centres in {cityName}, {districtName}, {stateName}</h2>
-        <p>Looking for training centres in {cityName}? Find verified skill training institutes in {cityName}, {districtName}, {stateName}. Browse courses in Excel, Tally, Digital Marketing, computer skills and more. Each centre profile includes course details, fees, duration, mode (offline/online/hybrid), office hours, contact information, and student reviews.</p>
-        <p>Popular searches: training centres in {cityName}, computer training institutes in {cityName}, Excel coaching in {cityName}, Tally classes in {cityName}, Digital Marketing courses in {cityName}, skill development centres in {cityName}.</p>
+      {/* ── Auto-generated SEO content ── */}
+      <section className="border-t pt-10 prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+        <h2 className="text-xl font-bold text-foreground">About Training Centres in {cityName}, {districtName}, {stateName}</h2>
+        <p>{seo.intro_paragraph}</p>
 
-        <h3 className="text-lg font-semibold text-foreground mt-4">Frequently Asked Questions</h3>
-        <div className="space-y-2 mt-2">
-          <div><strong>How to find training centres in {cityName}?</strong><br />Browse the list above or use our search to find verified training centres in {cityName}, {districtName}.</div>
-          <div><strong>Are these centres verified?</strong><br />Yes, all centres listed are verified by MioDemy before going live.</div>
-          <div><strong>Can I register my training centre in {cityName}?</strong><br />Yes! Click "Register Centre" to list your institute on MioDemy.</div>
+        <div className="not-prose flex flex-wrap gap-1.5 mt-4">
+          {seo.keywords.slice(0, 20).map((kw) => (
+            <Badge key={kw} variant="outline" className="text-xs font-normal">{kw}</Badge>
+          ))}
         </div>
-      </div>
+      </section>
+
+      {/* FAQs */}
+      <section className="border-t pt-10 mb-10">
+        <h2 className="text-2xl font-bold tracking-tight mb-4">Frequently Asked Questions</h2>
+        <div className="space-y-3">
+          {seo.faqs.map((faq, i) => (
+            <Card key={i}>
+              <CardContent className="py-4">
+                <h3 className="font-semibold text-sm mb-1">{faq.q}</h3>
+                <p className="text-sm text-muted-foreground">{faq.a}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

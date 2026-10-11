@@ -4,9 +4,12 @@ import type { Metadata } from 'next'
 import { Breadcrumbs } from '@/components/public/breadcrumbs'
 import { ServiceUnavailable } from '@/components/public/service-unavailable'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Building2, MapPin, ChevronRight, Phone } from 'lucide-react'
 import { safeFetch } from '@/lib/safe-fetch'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { generateJurisdictionSeo } from '@/lib/templates/jurisdiction-seo-templates'
+import { JsonLdFaq } from '@/components/seo/json-ld'
 
 interface PageProps { params: Promise<{ state: string }> }
 
@@ -15,9 +18,16 @@ function humanize(slug: string) { return slug.split('-').map(w => w.charAt(0).to
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { state } = await params
   const stateName = humanize(state)
+  const seo = generateJurisdictionSeo({ locationName: stateName, type: 'state' })
   return {
-    title: `Skill & Training Centres in ${stateName} — Find Institutes | MioDemy`,
-    description: `Browse verified skill and training centres in ${stateName}. Find Excel, Tally, Digital Marketing, computer training institutes with courses, fees, reviews and contact details.`,
+    title: seo.seo_title,
+    description: seo.seo_description,
+    keywords: seo.keywords,
+    openGraph: {
+      title: seo.seo_title,
+      description: seo.seo_description,
+      type: 'website',
+    },
   }
 }
 
@@ -25,8 +35,9 @@ export default async function StateCentresPage({ params }: PageProps) {
   const { state } = await params
   const stateName = humanize(state)
 
-  // Wrap all Supabase access in safeFetch so a missing-env-var deploy
-  // renders a friendly fallback instead of a 500.
+  // Generate SEO content (auto-generated from the location name)
+  const seo = generateJurisdictionSeo({ locationName: stateName, type: 'state' })
+
   const data = await safeFetch(async () => {
     const supabase = await createServerSupabaseClient()
     const { data: stateJur } = await supabase.from('jurisdictions').select('id').eq('name', stateName).eq('type', 'state').single()
@@ -43,20 +54,24 @@ export default async function StateCentresPage({ params }: PageProps) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Centres', href: '/centres' }, { label: 'By Location', href: '/centres/locations' }, { label: stateName }]} />
+      {/* FAQ JSON-LD for rich search results */}
+      <JsonLdFaq faqs={seo.faqs} />
+
+      <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Centres', href: '/centres' }, { label: 'Directory', href: '/centres/directory' }, { label: stateName }]} />
+
       <div className="mt-6 mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Skill & Training Centres in {stateName}</h1>
-        <p className="text-muted-foreground mt-2">Find verified training institutes in {stateName}. {(centres ?? []).length} centre{(centres ?? []).length !== 1 ? 's' : ''} listed.</p>
+        <p className="text-muted-foreground mt-2 max-w-2xl">{seo.intro_paragraph}</p>
       </div>
 
       {/* Districts */}
       {(districts ?? []).length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Browse by District</h2>
+          <h2 className="text-lg font-semibold mb-3">Browse by District in {stateName}</h2>
           <div className="flex flex-wrap gap-2">
             {districts?.map((d: Record<string, unknown>) => {
               const dSlug = (d.name as string).toLowerCase().replace(/\s+/g, '-')
-              return <Link key={d.id as string} href={`/centres/locations/${state}/${dSlug}`} className="rounded-full border px-4 py-1.5 text-sm hover:bg-accent">{d.name as string}</Link>
+              return <Link key={d.id as string} href={`/centres/locations/${state}/${dSlug}`} className="rounded-full border px-4 py-1.5 text-sm hover:bg-accent hover:border-primary/30 transition-colors">{d.name as string}</Link>
             })}
           </div>
         </div>
@@ -86,12 +101,35 @@ export default async function StateCentresPage({ params }: PageProps) {
         </div>
       ) : <p className="text-sm text-muted-foreground text-center py-8 mb-12">No centres found in {stateName} yet. <Link href="/centres/register" className="text-primary hover:underline">Register your centre</Link></p>}
 
-      {/* SEO Content */}
-      <div className="prose prose-sm max-w-none text-muted-foreground">
-        <h2 className="text-xl font-bold text-foreground">Training Centres in {stateName}</h2>
-        <p>Looking for skill training centres in {stateName}? MioDemy&apos;s directory lists verified training institutes across {stateName} offering courses in Excel, Tally, Digital Marketing, computer skills, and more. Browse centre profiles to find courses, fees, duration, admission details, reviews and contact information.</p>
-        <p>Whether you&apos;re searching for computer training centres in {stateName}, Excel coaching classes, Tally training institutes, or Digital Marketing academies, our directory helps you find the right training provider near you.</p>
-      </div>
+      {/* ── Auto-generated SEO content ── */}
+      <section className="border-t pt-10 prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+        <h2 className="text-xl font-bold text-foreground">About Training Centres in {stateName}</h2>
+        <p>{seo.intro_paragraph}</p>
+
+        {/* Keywords */}
+        <div className="not-prose flex flex-wrap gap-1.5 mt-4">
+          {seo.keywords.slice(0, 20).map((kw) => (
+            <Badge key={kw} variant="outline" className="text-xs font-normal">
+              {kw}
+            </Badge>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQs */}
+      <section className="border-t pt-10 mb-10">
+        <h2 className="text-2xl font-bold tracking-tight mb-4">Frequently Asked Questions</h2>
+        <div className="space-y-3">
+          {seo.faqs.map((faq, i) => (
+            <Card key={i}>
+              <CardContent className="py-4">
+                <h3 className="font-semibold text-sm mb-1">{faq.q}</h3>
+                <p className="text-sm text-muted-foreground">{faq.a}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
